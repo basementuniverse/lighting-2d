@@ -14,11 +14,16 @@
     "@basementuniverse/camera": "^1.2.0",
     "@basementuniverse/debug": "^1.1.0",
     "@basementuniverse/input-manager": "^1.0.5",
+    "@basementuniverse/parsecolor": "^1.0.2",
     "@basementuniverse/utils": "^1.4.0",
-    "@basementuniverse/vec": "^1.0.2"
+    "@basementuniverse/vec": "^1.0.2",
+    "dat.gui": "^0.7.9",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "@types/dat.gui": "^0.7.13",
     "@types/node": "^18.11.12",
+    "@types/uuid": "^10.0.0",
     "clean-webpack-plugin": "^4.0.0-alpha.0",
     "ts-loader": "^8.0.7",
     "typescript": "^4.9.4",

@@ -2,21 +2,30 @@ import { vec } from '@basementuniverse/vec';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import * as constants from './constants';
+import { Scene1 } from './Scene1';
+import { Scene2 } from './Scene2';
+import { Scene3 } from './Scene3';
+import { Scene4 } from './Scene4';
+import * as dat from 'dat.gui';
 
 export default class Game {
   private canvas: HTMLCanvasElement;
-
   private context: CanvasRenderingContext2D;
 
   private lastFrameTime: number;
-
   private lastFrameCountTime: number;
-
   private frameRate: number = 0;
-
   private frameCount: number = 0;
 
+  private scene:
+    | Scene1
+    | Scene2
+    | Scene3
+    | Scene4
+    | null = null;
+
   public static screen: vec;
+  public static gui: dat.GUI;
 
   public constructor(container: HTMLElement | null) {
     if (container === null) {
@@ -49,10 +58,15 @@ export default class Game {
     // Initialise subsystems
     Debug.initialise();
     InputManager.initialise();
+    Game.gui = new dat.GUI();
 
     // Start game loop
     this.lastFrameTime = this.lastFrameCountTime = performance.now();
     this.loop();
+
+    // Initialise scene
+    this.scene = new Scene4();
+    this.scene.initialise();
   }
 
   private loop() {
@@ -68,7 +82,7 @@ export default class Game {
     this.frameCount++;
     this.lastFrameTime = now;
 
-    Debug.value('FPS', this.frameRate, { align: 'right' });
+    Debug.value('FPS', this.frameRate);
 
     // Do game loop
     this.update(elapsedTime);
@@ -79,7 +93,9 @@ export default class Game {
   update(dt: number) {
     Game.screen = vec(this.canvas.width, this.canvas.height);
 
-    // update...
+    if (this.scene) {
+      this.scene.update(dt);
+    }
 
     InputManager.update();  // Input manager should be updated last
   }
@@ -87,7 +103,9 @@ export default class Game {
   draw() {
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // draw ...
+    if (this.scene) {
+      this.scene.draw(this.context);
+    }
 
     Debug.draw(this.context);
   }

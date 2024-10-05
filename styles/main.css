@@ -3,10 +3,16 @@
   padding: 0;
 }
 
+body {
+  background-image: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%);
+  background-position: 0 0, 32px 32px;
+  background-size: 64px 64px;
+  background-color: #fff;
+}
+
 #game {
   display: block;
   position: fixed;
   width: 100%;
   height: 100%;
-  background-color: black;
 }
