@@ -1,13 +1,13 @@
+import Debug from '@basementuniverse/debug';
+import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
-import { clampVec, pointInRect } from './utils';
-import InputManager from '@basementuniverse/input-manager';
-import Debug from '@basementuniverse/debug';
+import { clampVec, pointInRectangle } from './utils';
 
-export class Ground {
+export class GroundShadowReceiver {
   private static readonly DEFAULT_SIZE = vec(200, 200);
-  private static readonly DEFAULT_COLOUR = '#aaa';
+  private static readonly DEFAULT_COLOUR = '#ddd';
   private static readonly DEBUG_COLOUR = '#05b';
   private static readonly DEBUG_HOVER_COLOUR = '#38f';
   private static readonly MIN_SIZE = vec(20, 20);
@@ -19,37 +19,37 @@ export class Ground {
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = Ground.DEFAULT_SIZE;
-  public colour: string = Ground.DEFAULT_COLOUR;
+  public size: vec = GroundShadowReceiver.DEFAULT_SIZE;
+  public colour: string = GroundShadowReceiver.DEFAULT_COLOUR;
 
   public hovered = false;
   public selected = false;
   private dragging = false;
   private dragOffset: vec | null = null;
 
-  public constructor(data: Partial<Ground> = {}) {
-    Object.assign(
-      this,
-      data,
-      {
-        id: data.id ?? uuid().split('-')[0],
-      }
-    );
+  public constructor(data: Partial<GroundShadowReceiver> = {}) {
+    Object.assign(this, data, {
+      id: data.id ?? uuid().split('-')[0],
+    });
 
     this.folder = Game.gui.addFolder(`Ground ${this.id}`);
     this.folder.add(this, 'colour');
-    this.folder.add(
-      this.size,
-      'x',
-      Ground.MIN_SIZE.x,
-      Ground.MAX_SIZE.x
-    ).name('width');
-    this.folder.add(
-      this.size,
-      'y',
-      Ground.MIN_SIZE.y,
-      Ground.MAX_SIZE.y
-    ).name('height');
+    this.folder
+      .add(
+        this.size,
+        'x',
+        GroundShadowReceiver.MIN_SIZE.x,
+        GroundShadowReceiver.MAX_SIZE.x
+      )
+      .name('width');
+    this.folder
+      .add(
+        this.size,
+        'y',
+        GroundShadowReceiver.MIN_SIZE.y,
+        GroundShadowReceiver.MAX_SIZE.y
+      )
+      .name('height');
   }
 
   public serialise(): any {
@@ -58,12 +58,12 @@ export class Ground {
       id: this.id,
       position: this.position,
       size: this.size,
-      colour: this.colour
+      colour: this.colour,
     };
   }
 
-  public static deserialise(data: any): Ground {
-    return new Ground(data);
+  public static deserialise(data: any): GroundShadowReceiver {
+    return new GroundShadowReceiver(data);
   }
 
   public destroy() {
@@ -73,11 +73,10 @@ export class Ground {
   }
 
   public update(dt: number) {
-    this.hovered = pointInRect(
-      InputManager.mousePosition,
-      this.position,
-      vec.add(this.position, this.size)
-    );
+    this.hovered = pointInRectangle(InputManager.mousePosition, {
+      position: this.position,
+      size: this.size,
+    });
 
     if (InputManager.mouseDown() && this.selected && !this.dragging) {
       this.dragging = true;
@@ -93,8 +92,8 @@ export class Ground {
       if (InputManager.keyDown('ControlLeft')) {
         this.size = clampVec(
           vec.sub(InputManager.mousePosition, this.position),
-          Ground.MIN_SIZE,
-          Ground.MAX_SIZE
+          GroundShadowReceiver.MIN_SIZE,
+          GroundShadowReceiver.MAX_SIZE
         );
       } else {
         this.position = vec.sub(InputManager.mousePosition, this.dragOffset);
@@ -105,9 +104,10 @@ export class Ground {
       showLabel: false,
       showValue: false,
       size: this.size,
-      borderColour: (this.hovered || this.dragging)
-        ? Ground.DEBUG_HOVER_COLOUR
-        : Ground.DEBUG_COLOUR,
+      borderColour:
+        this.hovered || this.dragging
+          ? GroundShadowReceiver.DEBUG_HOVER_COLOUR
+          : GroundShadowReceiver.DEBUG_COLOUR,
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }

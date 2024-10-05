@@ -1,12 +1,10 @@
-import { vec } from '@basementuniverse/vec';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
-import * as constants from './constants';
-import { Scene1 } from './Scene1';
-import { Scene2 } from './Scene2';
-import { Scene3 } from './Scene3';
-import { Scene4 } from './Scene4';
+import { vec } from '@basementuniverse/vec';
 import * as dat from 'dat.gui';
+import * as constants from './constants';
+import { LightingScene } from './LightingScene';
+import { TestScene } from './TestScene';
 
 export default class Game {
   private canvas: HTMLCanvasElement;
@@ -17,12 +15,7 @@ export default class Game {
   private frameRate: number = 0;
   private frameCount: number = 0;
 
-  private scene:
-    | Scene1
-    | Scene2
-    | Scene3
-    | Scene4
-    | null = null;
+  private scene: TestScene | LightingScene | null = null;
 
   public static screen: vec;
   public static gui: dat.GUI;
@@ -65,7 +58,8 @@ export default class Game {
     this.loop();
 
     // Initialise scene
-    this.scene = new Scene4();
+    this.scene = new LightingScene();
+    // this.scene = new TestScene();
     this.scene.initialise();
   }
 
@@ -97,7 +91,7 @@ export default class Game {
       this.scene.update(dt);
     }
 
-    InputManager.update();  // Input manager should be updated last
+    InputManager.update(); // Input manager should be updated last
   }
 
   draw() {

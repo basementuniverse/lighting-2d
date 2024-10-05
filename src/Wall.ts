@@ -1,16 +1,21 @@
+import Debug from '@basementuniverse/debug';
+import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
-import { clampVec, pointInRect } from './utils';
-import InputManager from '@basementuniverse/input-manager';
-import Debug from '@basementuniverse/debug';
+import { Rectangle, ShadowOptions } from './types';
+import { clampVec, pointInRectangle } from './utils';
 
 export class Wall {
   private static readonly DEFAULT_SIZE = vec(100, 100);
-  private static readonly DEFAULT_COLOUR = '#777';
-  private static readonly DEFAULT_SHADOW_LENGTH = 100;
-  private static readonly DEFAULT_SHADOW_REGION_OFFSET = vec(0, 50);
-  private static readonly DEFAULT_SHADOW_REGION_SIZE = vec(100, 50);
+  private static readonly DEFAULT_COLOUR = '#ccc';
+  private static readonly DEFAULT_SHADOW_OPTIONS: ShadowOptions = {
+    type: 'region',
+    region: {
+      position: vec(0, 0.4),
+      size: vec(1, 0.6),
+    },
+  };
   private static readonly DEBUG_COLOUR = '#b05';
   private static readonly DEBUG_HOVER_COLOUR = '#d27';
   private static readonly MIN_SIZE = vec(20, 20);
@@ -24,14 +29,7 @@ export class Wall {
   public position: vec = vec();
   public size: vec = Wall.DEFAULT_SIZE;
   public colour: string = Wall.DEFAULT_COLOUR;
-  public shadowLength: number = Wall.DEFAULT_SHADOW_LENGTH;
-  public shadowRegion: {
-    offset: vec;
-    size: vec;
-  } = {
-    offset: Wall.DEFAULT_SHADOW_REGION_OFFSET,
-    size: Wall.DEFAULT_SHADOW_REGION_SIZE,
-  };
+  public shadowOptions: ShadowOptions = Wall.DEFAULT_SHADOW_OPTIONS;
 
   public hovered = false;
   public selected = false;
@@ -39,33 +37,35 @@ export class Wall {
   private dragOffset: vec | null = null;
 
   public constructor(data: Partial<Wall> = {}) {
-    Object.assign(
-      this,
-      data,
-      {
-        id: data.id ?? uuid().split('-')[0],
-      }
-    );
+    Object.assign(this, data, {
+      id: data.id ?? uuid().split('-')[0],
+    });
 
     this.folder = Game.gui.addFolder(`Wall ${this.id}`);
     this.folder.add(this, 'colour');
-    this.folder.add(this, 'shadowLength', 0, 100);
-    this.folder.add(
-      this.size,
-      'x',
-      Wall.MIN_SIZE.x,
-      Wall.MAX_SIZE.x
-    ).name('width');
-    this.folder.add(
-      this.size,
-      'y',
-      Wall.MIN_SIZE.y,
-      Wall.MAX_SIZE.y
-    ).name('height');
-    this.folder.add(this.shadowRegion.offset, 'x').name('shadowRegion x');
-    this.folder.add(this.shadowRegion.offset, 'y').name('shadowRegion y');
-    this.folder.add(this.shadowRegion.size, 'x').name('shadowRegion width');
-    this.folder.add(this.shadowRegion.size, 'y').name('shadowRegion height');
+    this.folder
+      .add(this.size, 'x', Wall.MIN_SIZE.x, Wall.MAX_SIZE.x)
+      .name('width');
+    this.folder
+      .add(this.size, 'y', Wall.MIN_SIZE.y, Wall.MAX_SIZE.y)
+      .name('height');
+  }
+
+  public get shadowRegion(): Rectangle | null {
+    if (this.shadowOptions.type === 'region') {
+      return {
+        position: vec(
+          this.position.x + this.shadowOptions.region.position.x * this.size.x,
+          this.position.y + this.shadowOptions.region.position.y * this.size.y
+        ),
+        size: vec(
+          this.shadowOptions.region.size.x * this.size.x,
+          this.shadowOptions.region.size.y * this.size.y
+        ),
+      };
+    }
+
+    return null;
   }
 
   public serialise(): any {
@@ -75,8 +75,7 @@ export class Wall {
       position: this.position,
       size: this.size,
       colour: this.colour,
-      shadowLength: this.shadowLength,
-      shadowRegion: this.shadowRegion,
+      shadowOptions: this.shadowOptions,
     };
   }
 
@@ -91,11 +90,10 @@ export class Wall {
   }
 
   public update(dt: number) {
-    this.hovered = pointInRect(
-      InputManager.mousePosition,
-      this.position,
-      vec.add(this.position, this.size)
-    );
+    this.hovered = pointInRectangle(InputManager.mousePosition, {
+      position: this.position,
+      size: this.size,
+    });
 
     if (InputManager.mouseDown() && this.selected && !this.dragging) {
       this.dragging = true;
@@ -119,27 +117,16 @@ export class Wall {
       }
     }
 
-    Debug.border(`${this.id}_border`, '', this.position, {
-      showLabel: false,
+    Debug.border(this.id, '', this.position, {
+      showLabel: true,
       showValue: false,
       size: this.size,
-      borderColour: (this.hovered || this.dragging)
-        ? Wall.DEBUG_HOVER_COLOUR
-        : Wall.DEBUG_COLOUR,
+      borderColour:
+        this.hovered || this.dragging
+          ? Wall.DEBUG_HOVER_COLOUR
+          : Wall.DEBUG_COLOUR,
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
-    Debug.border(
-      `${this.id}_shadowRegion_border`,
-      '',
-      vec.add(this.position, this.shadowRegion.offset),
-      {
-        showLabel: false,
-        showValue: false,
-        size: this.shadowRegion.size,
-        borderColour: 'black',
-        borderStyle: 'dotted',
-      }
-    );
   }
 
   public draw(context: CanvasRenderingContext2D) {

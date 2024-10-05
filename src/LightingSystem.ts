@@ -1,10 +1,10 @@
 import Game from './Game';
-import { Ground } from './Ground';
+import { GroundShadowReceiver } from './GroundShadowReceiver';
 import { Light } from './Light';
 import { Wall } from './Wall';
 
 export class LightingSystem {
-  private static readonly WALL_LIGHTING_Y_OFFSET = -30;
+  public static readonly WALL_LIGHTING_Y_OFFSET = -30;
 
   public ambientLightColour = 'black';
   public lights: Light[] = [];
@@ -14,9 +14,6 @@ export class LightingSystem {
 
   public wallMaskCanvas: HTMLCanvasElement;
   private wallMaskContext: CanvasRenderingContext2D;
-
-  public lightMapCanvas: HTMLCanvasElement;
-  private lightMapContext: CanvasRenderingContext2D;
 
   public wallMaskedLightMapCanvas: HTMLCanvasElement;
   private wallMaskedLightMapContext: CanvasRenderingContext2D;
@@ -35,14 +32,6 @@ export class LightingSystem {
     this.wallMaskCanvas.height = Game.screen.y;
     this.wallMaskContext = this.wallMaskCanvas.getContext('2d')!;
 
-    this.lightMapCanvas = document.createElement('canvas');
-    this.lightMapCanvas.width = Game.screen.x;
-    this.lightMapCanvas.height = (
-      Game.screen.y -
-      LightingSystem.WALL_LIGHTING_Y_OFFSET
-    );
-    this.lightMapContext = this.lightMapCanvas.getContext('2d')!;
-
     this.wallMaskedLightMapCanvas = document.createElement('canvas');
     this.wallMaskedLightMapCanvas.width = Game.screen.x;
     this.wallMaskedLightMapCanvas.height = Game.screen.y;
@@ -60,35 +49,8 @@ export class LightingSystem {
     this.lights.forEach(light => light.update(dt));
   }
 
-  public prepare(
-    grounds: Ground[],
-    walls: Wall[]
-  ) {
-    this.lights.forEach(light => light.draw());
-
-    // Prepare lightmap
-    this.lightMapCanvas.width = Game.screen.x;
-    this.lightMapCanvas.height = (
-      Game.screen.y -
-      LightingSystem.WALL_LIGHTING_Y_OFFSET
-    );
-    this.lightMapContext.save();
-
-    // Ambient light
-    this.lightMapContext.fillStyle = this.ambientLightColour;
-    this.lightMapContext.fillRect(0, 0, Game.screen.x, Game.screen.y);
-
-    // Draw lights
-    this.lightMapContext.globalCompositeOperation = 'screen';
-    this.lights.forEach(light => {
-      this.lightMapContext.drawImage(
-        light.lightCanvas,
-        light.position.x - light.radius,
-        light.position.y - light.radius
-      );
-    });
-
-    this.lightMapContext.restore();
+  public prepare(grounds: GroundShadowReceiver[], walls: Wall[]) {
+    this.lights.forEach(light => light.prepare(grounds, walls));
 
     // Prepare ground mask
     this.groundMaskCanvas.width = Game.screen.x;
@@ -118,33 +80,56 @@ export class LightingSystem {
 
     this.wallMaskContext.restore();
 
-    // Draw lightmap onto ground-masked lightmap
+    // Prepare ground-mask lightmap canvas
     this.groundMaskedLightMapCanvas.width = Game.screen.x;
     this.groundMaskedLightMapCanvas.height = Game.screen.y;
     this.groundMaskedLightMapContext.save();
 
-    this.groundMaskedLightMapContext.drawImage(this.lightMapCanvas, 0, 0);
+    this.groundMaskedLightMapContext.fillStyle = this.ambientLightColour;
+    this.groundMaskedLightMapContext.fillRect(
+      0,
+      0,
+      Game.screen.x,
+      Game.screen.y
+    );
+
+    // Draw lights
+    this.groundMaskedLightMapContext.globalCompositeOperation = 'screen';
+    this.lights.forEach(light => {
+      this.groundMaskedLightMapContext.drawImage(
+        light.groundLightCanvas,
+        light.position.x - light.radius,
+        light.position.y - light.radius
+      );
+    });
+
+    // Mask ground
     this.groundMaskedLightMapContext.globalCompositeOperation =
       'destination-atop';
     this.groundMaskedLightMapContext.drawImage(this.groundMaskCanvas, 0, 0);
 
-    this.groundMaskedLightMapContext.restore();
-
-    // Draw lightmap onto wall-masked lightmap
+    // Prepare wall-mask lightmap canvas
     this.wallMaskedLightMapCanvas.width = Game.screen.x;
     this.wallMaskedLightMapCanvas.height = Game.screen.y;
     this.wallMaskedLightMapContext.save();
 
-    this.wallMaskedLightMapContext.drawImage(
-      this.lightMapCanvas,
-      0,
-      LightingSystem.WALL_LIGHTING_Y_OFFSET
-    );
+    this.wallMaskedLightMapContext.fillStyle = this.ambientLightColour;
+    this.wallMaskedLightMapContext.fillRect(0, 0, Game.screen.x, Game.screen.y);
+
+    // Draw lights
+    this.wallMaskedLightMapContext.globalCompositeOperation = 'screen';
+    this.lights.forEach(light => {
+      this.wallMaskedLightMapContext.drawImage(
+        light.wallLightCanvas,
+        light.position.x - light.radius,
+        light.position.y - light.radius + LightingSystem.WALL_LIGHTING_Y_OFFSET
+      );
+    });
+
+    // Mask wall
     this.wallMaskedLightMapContext.globalCompositeOperation =
       'destination-atop';
     this.wallMaskedLightMapContext.drawImage(this.wallMaskCanvas, 0, 0);
-
-    this.wallMaskedLightMapContext.restore();
   }
 
   public draw(context: CanvasRenderingContext2D) {
