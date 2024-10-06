@@ -3,7 +3,8 @@ import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
-import { clampVec, pointInRectangle } from './utils';
+import { LightingScene } from './LightingScene';
+import { clampVec, pointInRectangle, quantizeVec } from './utils';
 
 export class GroundShadowReceiver {
   private static readonly DEFAULT_SIZE = vec(200, 200);
@@ -11,7 +12,7 @@ export class GroundShadowReceiver {
   private static readonly DEBUG_COLOUR = '#05b';
   private static readonly DEBUG_HOVER_COLOUR = '#38f';
   private static readonly MIN_SIZE = vec(20, 20);
-  private static readonly MAX_SIZE = vec(600, 600);
+  private static readonly MAX_SIZE = vec(1000, 1000);
 
   public readonly type = 'GroundShadowReceiver';
 
@@ -92,18 +93,27 @@ export class GroundShadowReceiver {
 
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
+        let newSize = vec.sub(InputManager.mousePosition, this.position);
+        if (InputManager.keyDown('ShiftLeft')) {
+          newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
+        }
         this.size = clampVec(
-          vec.sub(InputManager.mousePosition, this.position),
+          newSize,
           GroundShadowReceiver.MIN_SIZE,
           GroundShadowReceiver.MAX_SIZE
         );
       } else {
-        this.position = vec.sub(InputManager.mousePosition, this.dragOffset);
+        let newPosition = vec.sub(InputManager.mousePosition, this.dragOffset);
+        if (InputManager.keyDown('ShiftLeft')) {
+          newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
+        }
+        this.position = newPosition;
       }
     }
 
     Debug.border(`GroundShadowReceiver ${this.id}`, '', this.position, {
-      showLabel: false,
+      level: 1,
+      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       size: this.size,
       borderColour:

@@ -1,5 +1,6 @@
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
+import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { CircleShadowCaster } from './CircleShadowCaster';
 import Game from './Game';
@@ -11,6 +12,9 @@ import { SpriteShadowCaster } from './SpriteShadowCaster';
 import { WallShadowReceiver } from './WallShadowReceiver';
 
 export class LightingScene {
+  public static readonly GRID_SIZE = 20;
+
+  private showDebug = true;
   public lightingSystem: LightingSystem;
 
   private groundShadowReceivers: GroundShadowReceiver[] = [];
@@ -28,7 +32,7 @@ export class LightingScene {
     | Light
     | null = null;
 
-  private mode:
+  public mode:
     | 'nolighting'
     | 'normal'
     | 'groundmask'
@@ -41,58 +45,88 @@ export class LightingScene {
     this.lightingSystem = new LightingSystem();
     this.lightingSystem.initialise();
 
-    Game.gui.add({ click: () => this.save() }, 'click').name('Save');
-    Game.gui.add({ click: () => this.load() }, 'click').name('Load');
     Game.gui
-      .add({ click: () => (this.mode = 'nolighting') }, 'click')
-      .name('No lighting');
+      .add({ click: () => this.store() }, 'click')
+      .name('Save to local storage');
     Game.gui
-      .add({ click: () => (this.mode = 'normal') }, 'click')
-      .name('Normal');
+      .add({ click: () => this.retrieve() }, 'click')
+      .name('Load from local storage');
     Game.gui
-      .add({ click: () => (this.mode = 'groundmask') }, 'click')
-      .name('Ground mask');
+      .add({ click: () => this.export() }, 'click')
+      .name('Export state to JSON');
     Game.gui
-      .add({ click: () => (this.mode = 'wallmask') }, 'click')
-      .name('Wall mask');
+      .add({ click: () => this.import() }, 'click')
+      .name('Import state from JSON');
     Game.gui
-      .add({ click: () => (this.mode = 'groundmaskedlightmap') }, 'click')
-      .name('Ground-masked lightmap');
+      .add(this, 'mode', [
+        'nolighting',
+        'normal',
+        'groundmask',
+        'wallmask',
+        'groundmaskedlightmap',
+        'wallmaskedlightmap',
+        'lightmap',
+      ])
+      .name('Mode');
     Game.gui
-      .add({ click: () => (this.mode = 'wallmaskedlightmap') }, 'click')
-      .name('Wall-masked lightmap');
-    Game.gui
-      .add({ click: () => (this.mode = 'lightmap') }, 'click')
-      .name('Light map');
+      .add(
+        {
+          click: () => {
+            this.wallShadowReceivers = LightingSystem.mergeWallShadowReceivers(
+              this.wallShadowReceivers
+            );
+
+            this.regionShadowCasters = LightingSystem.mergeRegionShadowCasters(
+              this.regionShadowCasters
+            );
+          },
+        },
+        'click'
+      )
+      .name('Optimise');
     Game.gui.add(this.lightingSystem, 'ambientLightColour').listen();
   }
 
-  private save() {
-    localStorage.setItem(
-      'lighting_demo_test_state',
-      JSON.stringify({
-        ambientLightColour: this.lightingSystem.ambientLightColour,
-        groundShadowReceivers: this.groundShadowReceivers.map(g =>
-          g.serialise()
-        ),
-        wallShadowReceivers: this.wallShadowReceivers.map(w => w.serialise()),
-        regionShadowCasters: this.regionShadowCasters.map(r => r.serialise()),
-        spriteShadowCasters: this.spriteShadowCasters.map(s => s.serialise()),
-        circleShadowCasters: this.circleShadowCasters.map(c => c.serialise()),
-        lights: this.lightingSystem.lights.map(l => l.serialise()),
-      })
-    );
+  private store() {
+    localStorage.setItem('lighting_demo_test_state', this.save());
   }
 
-  private load() {
-    const stateData = localStorage.getItem('lighting_demo_test_state');
-    if (!stateData) {
+  private retrieve() {
+    const data = localStorage.getItem('lighting_demo_test_state');
+    if (!data) {
       return;
     }
 
+    this.load(data);
+  }
+
+  private export() {
+    console.log(this.save());
+  }
+
+  private import() {
+    const data = prompt('Paste state data here:');
+    if (data) {
+      this.load(data);
+    }
+  }
+
+  private save(): string {
+    return JSON.stringify({
+      ambientLightColour: this.lightingSystem.ambientLightColour,
+      groundShadowReceivers: this.groundShadowReceivers.map(g => g.serialise()),
+      wallShadowReceivers: this.wallShadowReceivers.map(w => w.serialise()),
+      regionShadowCasters: this.regionShadowCasters.map(r => r.serialise()),
+      spriteShadowCasters: this.spriteShadowCasters.map(s => s.serialise()),
+      circleShadowCasters: this.circleShadowCasters.map(c => c.serialise()),
+      lights: this.lightingSystem.lights.map(l => l.serialise()),
+    });
+  }
+
+  private load(data: string) {
     let state;
     try {
-      state = JSON.parse(stateData);
+      state = JSON.parse(data);
     } catch (e) {
       console.error('State data is invalid');
       return;
@@ -138,7 +172,9 @@ export class LightingScene {
     Debug.value('Press SHIFT-R to create a new RegionShadowCaster', '');
     Debug.value('Press SHIFT-S to create a new SpriteShadowCaster', '');
     Debug.value('Press SHIFT-C to create a new CircleShadowCaster', '');
+    Debug.value('Press D to duplicate selected', '');
     Debug.value('CTRL-drag to resize', '');
+    Debug.value('Hold SHIFT while moving or resizing to snap to grid', '');
 
     this.groundShadowReceivers.forEach(ground => ground.update(dt));
     this.wallShadowReceivers.forEach(wall => wall.update(dt));
@@ -259,6 +295,65 @@ export class LightingScene {
             position: vec.cpy(InputManager.mousePosition),
           })
         );
+      }
+    }
+
+    // Handle item duplicate
+    if (InputManager.keyPressed('KeyD') && this.selected) {
+      switch (this.selected.type) {
+        case 'GroundShadowReceiver':
+          this.groundShadowReceivers.push(
+            GroundShadowReceiver.deserialise({
+              ...exclude(this.selected.serialise(), 'id', 'position'),
+              position: vec.cpy(InputManager.mousePosition),
+            })
+          );
+          break;
+
+        case 'WallShadowReceiver':
+          this.wallShadowReceivers.push(
+            WallShadowReceiver.deserialise({
+              ...exclude(this.selected.serialise(), 'id', 'position'),
+              position: vec.cpy(InputManager.mousePosition),
+            })
+          );
+          break;
+
+        case 'RegionShadowCaster':
+          this.regionShadowCasters.push(
+            RegionShadowCaster.deserialise({
+              ...exclude(this.selected.serialise(), 'id', 'position'),
+              position: vec.cpy(InputManager.mousePosition),
+            })
+          );
+          break;
+
+        case 'SpriteShadowCaster':
+          this.spriteShadowCasters.push(
+            SpriteShadowCaster.deserialise({
+              ...exclude(this.selected.serialise(), 'id', 'position'),
+              position: vec.cpy(InputManager.mousePosition),
+            })
+          );
+          break;
+
+        case 'CircleShadowCaster':
+          this.circleShadowCasters.push(
+            CircleShadowCaster.deserialise({
+              ...exclude(this.selected.serialise(), 'id', 'position'),
+              position: vec.cpy(InputManager.mousePosition),
+            })
+          );
+          break;
+
+        case 'Light':
+          this.lightingSystem.lights.push(
+            Light.deserialise({
+              ...exclude(this.selected.serialise(), 'id', 'position'),
+              position: vec.cpy(InputManager.mousePosition),
+            })
+          );
+          break;
       }
     }
 

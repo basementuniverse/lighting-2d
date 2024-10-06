@@ -39,6 +39,13 @@ export function clampVec(v: vec, min: vec, max: vec): vec {
 }
 
 /**
+ * Quantize a vector to a grid
+ */
+export function quantizeVec(v: vec, quant: number): vec {
+  return vec.map(v, n => Math.round(n / quant) * quant);
+}
+
+/**
  * Convert a colour object to a CSS string
  */
 export function colourToString(colour: Colour): string {
@@ -141,12 +148,23 @@ export function lineInRectangle(line: Line, rectangle: Rectangle): vec | null {
 /**
  * Calculate the x position of a line where it intercepts a given y
  */
-export function lineYIntercept(line: Line, y: number): number | null {
+export function lineYIntercept(
+  line: Line,
+  y: number,
+  allowBefore: boolean = true,
+  allowAfter: boolean = true
+): number | null {
   if (floatEquals(line.start.y, line.end.y)) {
     return null;
   }
 
   const t = (y - line.start.y) / (line.end.y - line.start.y);
+  if (t < 0 && !allowBefore) {
+    return null;
+  }
+  if (t > 1 && !allowAfter) {
+    return null;
+  }
 
   return line.start.x + t * (line.end.x - line.start.x);
 }
@@ -226,7 +244,7 @@ export function rectanglesIntersect(a: Rectangle, b: Rectangle): boolean {
   const tl2 = b.position;
   const br2 = vec.add(b.position, b.size);
 
-  return tl1.x <= br2.x && br1.x >= tl2.x && tl1.y <= br2.y && br1.y >= tl2.y;
+  return tl1.x < br2.x && br1.x > tl2.x && tl1.y < br2.y && br1.y > tl2.y;
 }
 
 /**

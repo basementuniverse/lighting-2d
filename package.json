@@ -12,7 +12,7 @@
   "license": "MIT",
   "dependencies": {
     "@basementuniverse/camera": "^1.2.0",
-    "@basementuniverse/debug": "^1.1.0",
+    "@basementuniverse/debug": "^1.2.0",
     "@basementuniverse/input-manager": "^1.0.5",
     "@basementuniverse/parsecolor": "^1.0.2",
     "@basementuniverse/utils": "^1.4.0",

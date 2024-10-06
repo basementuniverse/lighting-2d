@@ -3,12 +3,18 @@ import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
+import { LightingScene } from './LightingScene';
 import ShadowCaster from './ShadowCaster';
-import { clampVec, pointInRectangle } from './utils';
+import {
+  clampVec,
+  maxVec,
+  minVec,
+  pointInRectangle,
+  quantizeVec,
+} from './utils';
 
 export class RegionShadowCaster implements ShadowCaster {
   private static readonly DEFAULT_SIZE = vec(100, 100);
-  private static readonly DEFAULT_COLOUR = '#ccc';
   private static readonly DEBUG_COLOUR = '#b05';
   private static readonly DEBUG_HOVER_COLOUR = '#d27';
   private static readonly MIN_SIZE = vec(20, 20);
@@ -21,7 +27,6 @@ export class RegionShadowCaster implements ShadowCaster {
 
   public position: vec = vec();
   public size: vec = RegionShadowCaster.DEFAULT_SIZE;
-  public colour: string = RegionShadowCaster.DEFAULT_COLOUR;
 
   public hovered = false;
   public selected = false;
@@ -52,7 +57,6 @@ export class RegionShadowCaster implements ShadowCaster {
         RegionShadowCaster.MAX_SIZE.y
       )
       .name('height');
-    this.folder.add(this, 'colour');
   }
 
   public serialise(): any {
@@ -61,7 +65,6 @@ export class RegionShadowCaster implements ShadowCaster {
       id: this.id,
       position: this.position,
       size: this.size,
-      colour: this.colour,
     };
   }
 
@@ -73,6 +76,19 @@ export class RegionShadowCaster implements ShadowCaster {
     if (this.folder) {
       Game.gui.removeFolder(this.folder);
     }
+  }
+
+  public merge(b: RegionShadowCaster): RegionShadowCaster {
+    const position = minVec(this.position, b.position);
+    const br = maxVec(
+      vec.add(this.position, this.size),
+      vec.add(b.position, b.size)
+    );
+
+    return new RegionShadowCaster({
+      position,
+      size: vec.sub(br, position),
+    });
   }
 
   public update(dt: number) {
@@ -93,19 +109,29 @@ export class RegionShadowCaster implements ShadowCaster {
 
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
+        let newSize = vec.sub(InputManager.mousePosition, this.position);
+        if (InputManager.keyDown('ShiftLeft')) {
+          newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
+        }
         this.size = clampVec(
-          vec.sub(InputManager.mousePosition, this.position),
+          newSize,
           RegionShadowCaster.MIN_SIZE,
           RegionShadowCaster.MAX_SIZE
         );
       } else {
-        this.position = vec.sub(InputManager.mousePosition, this.dragOffset);
+        let newPosition = vec.sub(InputManager.mousePosition, this.dragOffset);
+        if (InputManager.keyDown('ShiftLeft')) {
+          newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
+        }
+        this.position = newPosition;
       }
     }
 
     Debug.border(`RegionShadowCaster ${this.id}`, '', this.position, {
-      showLabel: true,
+      level: 1,
+      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
+      labelOffset: vec(10, 50),
       size: this.size,
       borderColour:
         this.hovered || this.dragging

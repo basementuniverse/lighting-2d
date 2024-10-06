@@ -3,12 +3,12 @@ import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
+import { LightingScene } from './LightingScene';
 import ShadowCaster from './ShadowCaster';
-import { clampVec, pointInRectangle } from './utils';
+import { clampVec, pointInRectangle, quantizeVec } from './utils';
 
 export class SpriteShadowCaster implements ShadowCaster {
   private static readonly DEFAULT_SIZE = vec(100, 100);
-  private static readonly DEFAULT_COLOUR = '#ccc';
   private static readonly DEBUG_COLOUR = '#b05';
   private static readonly DEBUG_HOVER_COLOUR = '#d27';
   private static readonly MIN_SIZE = vec(20, 20);
@@ -21,7 +21,6 @@ export class SpriteShadowCaster implements ShadowCaster {
 
   public position: vec = vec();
   public size: vec = SpriteShadowCaster.DEFAULT_SIZE;
-  public colour: string = SpriteShadowCaster.DEFAULT_COLOUR;
   public spriteName: string = '';
 
   public hovered = false;
@@ -53,7 +52,6 @@ export class SpriteShadowCaster implements ShadowCaster {
         SpriteShadowCaster.MAX_SIZE.y
       )
       .name('height');
-    this.folder.add(this, 'colour');
     this.folder.add(this, 'spriteName');
   }
 
@@ -63,7 +61,6 @@ export class SpriteShadowCaster implements ShadowCaster {
       id: this.id,
       position: this.position,
       size: this.size,
-      colour: this.colour,
       spriteName: this.spriteName,
     };
   }
@@ -96,18 +93,27 @@ export class SpriteShadowCaster implements ShadowCaster {
 
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
+        let newSize = vec.sub(InputManager.mousePosition, this.position);
+        if (InputManager.keyDown('ShiftLeft')) {
+          newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
+        }
         this.size = clampVec(
-          vec.sub(InputManager.mousePosition, this.position),
+          newSize,
           SpriteShadowCaster.MIN_SIZE,
           SpriteShadowCaster.MAX_SIZE
         );
       } else {
-        this.position = vec.sub(InputManager.mousePosition, this.dragOffset);
+        let newPosition = vec.sub(InputManager.mousePosition, this.dragOffset);
+        if (InputManager.keyDown('ShiftLeft')) {
+          newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
+        }
+        this.position = newPosition;
       }
     }
 
     Debug.border(`SpriteShadowCaster ${this.id}`, '', this.position, {
-      showLabel: true,
+      level: 1,
+      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       size: this.size,
       borderColour:

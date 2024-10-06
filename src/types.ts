@@ -51,3 +51,10 @@ export type PolygonVertices = (
   | vec
   | ((context: CanvasRenderingContext2D) => void)
 )[];
+
+export enum Side {
+  Top = 'top',
+  Right = 'right',
+  Bottom = 'bottom',
+  Left = 'left',
+}

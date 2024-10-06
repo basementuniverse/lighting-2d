@@ -3,7 +3,14 @@ import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
-import { clampVec, pointInRectangle } from './utils';
+import { LightingScene } from './LightingScene';
+import {
+  clampVec,
+  maxVec,
+  minVec,
+  pointInRectangle,
+  quantizeVec,
+} from './utils';
 
 export class WallShadowReceiver {
   private static readonly DEFAULT_SIZE = vec(200, 200);
@@ -21,6 +28,7 @@ export class WallShadowReceiver {
   public position: vec = vec();
   public size: vec = WallShadowReceiver.DEFAULT_SIZE;
   public colour: string = WallShadowReceiver.DEFAULT_COLOUR;
+  public receiveLight: boolean = true;
 
   public hovered = false;
   public selected = false;
@@ -52,6 +60,7 @@ export class WallShadowReceiver {
       )
       .name('height');
     this.folder.add(this, 'colour');
+    this.folder.add(this, 'receiveLight');
   }
 
   public serialise(): any {
@@ -61,6 +70,7 @@ export class WallShadowReceiver {
       position: this.position,
       size: this.size,
       colour: this.colour,
+      receiveLight: this.receiveLight,
     };
   }
 
@@ -72,6 +82,21 @@ export class WallShadowReceiver {
     if (this.folder) {
       Game.gui.removeFolder(this.folder);
     }
+  }
+
+  public merge(b: WallShadowReceiver): WallShadowReceiver {
+    const position = minVec(this.position, b.position);
+    const br = maxVec(
+      vec.add(this.position, this.size),
+      vec.add(b.position, b.size)
+    );
+
+    return new WallShadowReceiver({
+      position,
+      size: vec.sub(br, position),
+      colour: this.colour,
+      receiveLight: this.receiveLight,
+    });
   }
 
   public update(dt: number) {
@@ -92,19 +117,29 @@ export class WallShadowReceiver {
 
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
+        let newSize = vec.sub(InputManager.mousePosition, this.position);
+        if (InputManager.keyDown('ShiftLeft')) {
+          newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
+        }
         this.size = clampVec(
-          vec.sub(InputManager.mousePosition, this.position),
+          newSize,
           WallShadowReceiver.MIN_SIZE,
           WallShadowReceiver.MAX_SIZE
         );
       } else {
-        this.position = vec.sub(InputManager.mousePosition, this.dragOffset);
+        let newPosition = vec.sub(InputManager.mousePosition, this.dragOffset);
+        if (InputManager.keyDown('ShiftLeft')) {
+          newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
+        }
+        this.position = newPosition;
       }
     }
 
     Debug.border(`WallShadowReceiver ${this.id}`, '', this.position, {
-      showLabel: false,
+      level: 1,
+      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
+      labelOffset: vec(10, 30),
       size: this.size,
       borderColour:
         this.hovered || this.dragging

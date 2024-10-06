@@ -7,6 +7,22 @@ import { LightingScene } from './LightingScene';
 import { TestScene } from './TestScene';
 
 export default class Game {
+  public static DEBUG_MODES = {
+    none: {
+      debugLevel: 2,
+      labels: false,
+    },
+    borders: {
+      debugLevel: 0,
+      labels: false,
+    },
+    all: {
+      debugLevel: 0,
+      labels: true,
+    },
+  };
+  public static debugMode: 'none' | 'borders' | 'all' = 'borders';
+
   private canvas: HTMLCanvasElement;
   private context: CanvasRenderingContext2D;
 
@@ -51,7 +67,19 @@ export default class Game {
     // Initialise subsystems
     Debug.initialise();
     InputManager.initialise();
-    Game.gui = new dat.GUI();
+    Game.gui = new dat.GUI({
+      width: 300,
+    });
+
+    Game.gui
+      .add({ debugMode: Game.debugMode }, 'debugMode', [
+        'none',
+        'borders',
+        'all',
+      ])
+      .onChange(v => {
+        Game.debugMode = v;
+      });
 
     // Start game loop
     this.lastFrameTime = this.lastFrameCountTime = performance.now();
@@ -101,6 +129,6 @@ export default class Game {
       this.scene.draw(this.context);
     }
 
-    Debug.draw(this.context);
+    Debug.draw(this.context, Game.DEBUG_MODES[Game.debugMode].debugLevel);
   }
 }

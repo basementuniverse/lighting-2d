@@ -41,7 +41,7 @@ export class Light {
   private static readonly MIN_RADIUS = 10;
   private static readonly MAX_RADIUS = 400;
   private static readonly SHADOW_BUFFER = 20;
-  private static readonly WALL_LIGHT_CUTOFF_DISTANCE = 30;
+  private static readonly WALL_LIGHT_CUTOFF_DISTANCE = 20;
 
   public readonly type = 'Light';
 
@@ -178,6 +178,7 @@ export class Light {
     }
 
     Debug.border(`Light ${this.id} border`, '', this.position, {
+      level: 1,
       showLabel: false,
       showValue: false,
       borderShape: 'circle',
@@ -189,7 +190,9 @@ export class Light {
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
     Debug.marker(`Light ${this.id}`, this.id, this.position, {
-      showLabel: false,
+      level: 1,
+      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
+      showValue: false,
       markerColour:
         this.hovered || this.dragging
           ? Light.DEBUG_HOVER_COLOUR
@@ -316,6 +319,17 @@ export class Light {
 
       // Check if this wall shadow receiver is in range of the light
       if (rectanglesIntersect(lightRectangle, wallRectangle)) {
+        // If the wall doesn't receive light, it is in full shadow
+        if (!wall.receiveLight) {
+          this.wallLightContext.fillRect(
+            wallRectangle.position.x,
+            wallRectangle.position.y,
+            wallRectangle.size.x,
+            wallRectangle.size.y
+          );
+          continue;
+        }
+
         // The wall is only lit by this light if it's above the light
         if (this.position.y < wallInterval.bottom) {
           this.wallLightContext.save();
@@ -341,37 +355,115 @@ export class Light {
 
         // Check each shadow to see if it fully or partially shadows this wall
         for (const shadow of shadows) {
-          const shadowCasterInterval = rectangleToInterval({
+          const shadowCasterRectangle = {
             position: shadow.caster.position,
             size: shadow.caster.size,
-          });
+          };
+          const shadowCasterInterval = rectangleToInterval(
+            shadowCasterRectangle
+          );
 
-          // A shadow caster doesn't cast a shadow onto itself
-          if (wall.id === shadow.caster.id) {
+          // A shadow caster doesn't cast a shadow onto a receiver that
+          // overlaps it
+          if (rectanglesIntersect(wallRectangle, shadowCasterRectangle)) {
             continue;
           }
 
-          // Check if this wall's lower edge is below the shadow caster's
-          // lower edge (if it is, then the shadow won't cast onto this wall)
-          if (wallInterval.bottom >= shadowCasterInterval.bottom) {
-            continue;
-          }
-
-          // Check if this shadow has one or more edges (if it has no edges,
-          // then they're probably both pointing in the wrong direction and
-          // as such won't cast onto this wall)
+          // Check if this shadow has no edges (this means the light is inside
+          // the shadow caster region, and as such it doesn't cast a shadow)
           if (shadow.leftEdge === null && shadow.rightEdge === null) {
             continue;
           }
 
-          // Find where the left and right edges of the shadow intercept the
-          // lower edge of the receiving wall
+          // If both shadow edges are not pointing up then this shadow doesn't
+          // cast on this wall
+          if (
+            shadow.leftEdge &&
+            shadow.leftEdge.start.y <= shadow.leftEdge.end.y &&
+            shadow.rightEdge &&
+            shadow.rightEdge.start.y <= shadow.rightEdge.end.y
+          ) {
+            continue;
+          }
+
+          // Check if this wall's lower edge is below the shadow caster's
+          // lower edge. If so, the caster doesn't cast a shadow on this wall
+          if (wallInterval.bottom > shadowCasterInterval.bottom) {
+            continue;
+          }
+
+          // Edge case: if the caster is partially above and below the wall's
+          // lower edge and the shadow is pointing away from the wall, we don't
+          // cast a shadow
+          if (
+            shadowCasterInterval.top <= wallInterval.bottom &&
+            shadowCasterInterval.bottom >= wallInterval.bottom
+          ) {
+            // Shadow caster is to the left of shadow receiver
+            if (shadowCasterInterval.right <= wallInterval.left) {
+              if (
+                (shadow.rightEdge === null ||
+                  shadow.rightEdge.start.x >= shadow.rightEdge.end.x) &&
+                (shadow.leftEdge === null ||
+                  shadow.leftEdge.start.x >= shadow.leftEdge.end.x)
+              ) {
+                continue;
+              }
+            }
+
+            // Shadow caster is to the right of shadow receiver
+            if (shadowCasterInterval.left >= wallInterval.right) {
+              if (
+                (shadow.rightEdge === null ||
+                  shadow.rightEdge.start.x <= shadow.rightEdge.end.x) &&
+                (shadow.leftEdge === null ||
+                  shadow.leftEdge.start.x <= shadow.leftEdge.end.x)
+              ) {
+                continue;
+              }
+            }
+          }
+
+          // Check if this wall's lower edge is colinear with the shadow
+          // caster's lower edge. If so, we allow light to pass (in most cases)
+          // Edge case: if there's another shadow caster directly below the
+          // current one, then it might create a shadow
+          if (
+            wallInterval.bottom === shadowCasterInterval.bottom &&
+            !regionShadowCasters.some(c => {
+              const casterInterval = rectangleToInterval({
+                position: c.position,
+                size: c.size,
+              });
+
+              return (
+                casterInterval.top === shadowCasterInterval.bottom &&
+                overlap1d(
+                  {
+                    start: casterInterval.left,
+                    end: casterInterval.right,
+                  },
+                  {
+                    start: shadowCasterInterval.left,
+                    end: shadowCasterInterval.right,
+                  }
+                ) !== null
+              );
+            })
+          ) {
+            continue;
+          }
+
           let leftIntercept: number | null = null;
           if (shadow.leftEdge) {
             leftIntercept = lineYIntercept(
               shadow.leftEdge,
               wallInterval.bottom
             );
+
+            if (shadow.leftEdge.start.y < shadow.leftEdge.end.y) {
+              leftIntercept = wallInterval.left;
+            }
           }
 
           let rightIntercept: number | null = null;
@@ -380,57 +472,14 @@ export class Light {
               shadow.rightEdge,
               wallInterval.bottom
             );
-          }
 
-          // Check if there are no intercepts (if there are no intercepts,
-          // this means the shadow is pointing in the wrong direction and as
-          // such won't cast onto this wall)
-          if (leftIntercept === null && rightIntercept === null) {
-            continue;
-          }
-
-          // Edge case: when the shadow caster is partially above and below
-          // the shadow receiver and the shadow is pointing away from the
-          // receiving wall, sometimes a shadow appears due to the intercept
-          // being behind the start of the shadow
-          if (shadowCasterInterval.top < wallInterval.bottom) {
-            // Shadow caster is to the left of shadow receiver
-            if (
-              shadowCasterInterval.right < wallInterval.left &&
-              rightIntercept &&
-              shadow.rightEdge &&
-              rightIntercept > shadow.rightEdge.start.x &&
-              shadow.rightEdge.start.x > shadow.rightEdge.end.x
-            ) {
-              continue;
-            }
-
-            // Shadow caster is to the right of shadow receiver
-            if (
-              shadowCasterInterval.left > wallInterval.right &&
-              leftIntercept &&
-              shadow.leftEdge &&
-              leftIntercept < shadow.leftEdge.start.x &&
-              shadow.leftEdge.start.x < shadow.leftEdge.end.x
-            ) {
-              continue;
+            if (shadow.rightEdge.start.y < shadow.rightEdge.end.y) {
+              rightIntercept = wallInterval.right;
             }
           }
 
-          const min = Math.max(
-            wallInterval.left,
-            shadow.leftEdge
-              ? lineYIntercept(shadow.leftEdge, wallInterval.bottom) ??
-                  -Infinity
-              : -Infinity
-          );
-          const max = Math.min(
-            wallInterval.right,
-            shadow.rightEdge
-              ? lineYIntercept(shadow.rightEdge, wallInterval.bottom) ??
-                  Infinity
-              : Infinity
-          );
+          const min = Math.max(wallInterval.left, leftIntercept ?? -Infinity);
+          const max = Math.min(wallInterval.right, rightIntercept ?? Infinity);
 
           // Don't render the shadow if it's got negative width
           if (min >= max) {
@@ -536,8 +585,8 @@ export class Light {
           break;
         }
 
-        leftEdge = null;
-        rightEdge = null;
+        leftEdge = shadowEdges[0];
+        rightEdge = shadowEdges[3];
         shadowPolygon.push(
           shadowEdges[0].start,
           shadowEdges[0].end,
@@ -553,8 +602,8 @@ export class Light {
           break;
         }
 
-        leftEdge = null;
-        rightEdge = null;
+        leftEdge = shadowEdges[2];
+        rightEdge = shadowEdges[1];
         shadowPolygon.push(
           shadowEdges[2].start,
           shadowEdges[2].end,
@@ -579,8 +628,8 @@ export class Light {
           break;
         }
 
-        leftEdge = null;
-        rightEdge = null;
+        leftEdge = shadowEdges[2];
+        rightEdge = shadowEdges[1];
         shadowPolygon.push(
           shadowEdges[2].start,
           shadowEdges[2].end,
@@ -597,7 +646,7 @@ export class Light {
         }
 
         leftEdge = shadowEdges[0];
-        rightEdge = null;
+        rightEdge = shadowEdges[5];
         shadowPolygon.push(
           shadowEdges[0].start,
           shadowEdges[0].end,
@@ -625,7 +674,7 @@ export class Light {
           break;
         }
 
-        leftEdge = null;
+        leftEdge = shadowEdges[4];
         rightEdge = shadowEdges[3];
         shadowPolygon.push(
           shadowEdges[4].start,
