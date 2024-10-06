@@ -4,9 +4,13 @@ import { parseColor } from '@basementuniverse/parsecolor';
 import { at, clamp, exclude, remap } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
+import { CircleShadowCaster } from './CircleShadowCaster';
 import Game from './Game';
 import { GroundShadowReceiver } from './GroundShadowReceiver';
 import { LightingSystem } from './LightingSystem';
+import { RegionShadowCaster } from './RegionShadowCaster';
+import ShadowCaster from './ShadowCaster';
+import { SpriteShadowCaster } from './SpriteShadowCaster';
 import {
   Colour,
   Interval2d,
@@ -25,7 +29,7 @@ import {
   rectangleVertices,
   sector2d,
 } from './utils';
-import { Wall } from './Wall';
+import { WallShadowReceiver } from './WallShadowReceiver';
 
 export class Light {
   private static readonly DEFAULT_RADIUS = 100;
@@ -39,7 +43,7 @@ export class Light {
   private static readonly SHADOW_BUFFER = 20;
   private static readonly WALL_LIGHT_CUTOFF_DISTANCE = 30;
 
-  public readonly type = 'light';
+  public readonly type = 'Light';
 
   public id: string = '';
   public folder: dat.GUI | null = null;
@@ -75,6 +79,8 @@ export class Light {
     });
 
     this.folder = Game.gui.addFolder(`Light ${this.id}`);
+    this.folder.add(this.position, 'x');
+    this.folder.add(this.position, 'y');
     this.folder.add(this, 'radius', Light.MIN_RADIUS, Light.MAX_RADIUS);
     this.folder.add(this, 'colour');
     this.folder.add(this, 'intensity', 0, 1);
@@ -171,7 +177,7 @@ export class Light {
       }
     }
 
-    Debug.border(`${this.id}_border`, '', this.position, {
+    Debug.border(`Light ${this.id} border`, '', this.position, {
       showLabel: false,
       showValue: false,
       borderShape: 'circle',
@@ -182,7 +188,7 @@ export class Light {
           : Light.DEBUG_COLOUR,
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
-    Debug.marker(`${this.id}_marker`, this.id, this.position, {
+    Debug.marker(`Light ${this.id}`, this.id, this.position, {
       showLabel: false,
       markerColour:
         this.hovered || this.dragging
@@ -191,7 +197,14 @@ export class Light {
     });
   }
 
-  public prepare(grounds: GroundShadowReceiver[], walls: Wall[]) {
+  public prepare(
+    groundShadowReceivers: GroundShadowReceiver[],
+    wallShadowReceivers: WallShadowReceiver[],
+    regionShadowCasters: RegionShadowCaster[],
+    spriteShadowCasters: SpriteShadowCaster[],
+    circleShadowCasters: CircleShadowCaster[]
+  ) {
+    // If the light settings have changed, we need to redraw the base lightmap
     if (this.dirty) {
       this.lightCanvas.width = this.lightCanvas.height = this._radius * 2;
 
@@ -249,13 +262,9 @@ export class Light {
     };
 
     // Shadow metadata for each shadow
-    const wallShadows: {
-      // The id of the wall casting this shadow
-      shadowCasterId: string;
-
-      // A 2d interval representing the shadow region of the wall casting
-      // this shadow
-      shadowRegionInterval: Interval2d;
+    const shadows: {
+      // The entity that is casting this shadow
+      caster: ShadowCaster;
 
       // The leftmost edge of the shadow (when pointing upwards)
       leftEdge: Line | null;
@@ -263,23 +272,21 @@ export class Light {
       // The rightmost edge of the shadow (when pointing upwards)
       rightEdge: Line | null;
     }[] = [];
-    for (const wall of walls) {
-      const wallShadowRegion = wall.shadowRegion;
-
-      // If the wall has no shadow region, then it doesn't cast a shadow
-      if (!wallShadowRegion) {
-        continue;
-      }
+    for (const caster of regionShadowCasters) {
+      const casterRectangle = {
+        position: caster.position,
+        size: caster.size,
+      };
 
       // Check if this wall is in range of the light
-      if (rectanglesIntersect(lightRectangle, wallShadowRegion)) {
+      if (rectanglesIntersect(lightRectangle, casterRectangle)) {
         const shadow = {
-          shadowCasterId: wall.id,
-          ...this.prepareShadow(wallShadowRegion),
+          caster,
+          ...this.prepareRegionShadow(casterRectangle),
         };
 
         // Save shadow metadata for use later when rendering wall shadows
-        wallShadows.push(exclude(shadow, 'vertices'));
+        shadows.push(exclude(shadow, 'vertices'));
 
         // Render the ground shadow polygon onto the lightmap
         polygon(this.groundLightContext, ...shadow.vertices);
@@ -300,15 +307,15 @@ export class Light {
       -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
 
-    for (const wall of walls) {
-      const wallRegion = {
+    for (const wall of wallShadowReceivers) {
+      const wallRectangle = {
         position: wall.position,
         size: wall.size,
       };
-      const wallInterval = rectangleToInterval(wallRegion);
+      const wallInterval = rectangleToInterval(wallRectangle);
 
-      // Check if this wall is in range of the light
-      if (rectanglesIntersect(lightRectangle, wallRegion)) {
+      // Check if this wall shadow receiver is in range of the light
+      if (rectanglesIntersect(lightRectangle, wallRectangle)) {
         // The wall is only lit by this light if it's above the light
         if (this.position.y < wallInterval.bottom) {
           this.wallLightContext.save();
@@ -324,48 +331,53 @@ export class Light {
             1
           );
           this.wallLightContext.fillRect(
-            wallRegion.position.x,
-            wallRegion.position.y,
-            wallRegion.size.x,
-            wallRegion.size.y
+            wallRectangle.position.x,
+            wallRectangle.position.y,
+            wallRectangle.size.x,
+            wallRectangle.size.y
           );
           this.wallLightContext.restore();
         }
 
         // Check each shadow to see if it fully or partially shadows this wall
-        for (const wallShadow of wallShadows) {
+        for (const shadow of shadows) {
+          const shadowCasterInterval = rectangleToInterval({
+            position: shadow.caster.position,
+            size: shadow.caster.size,
+          });
+
           // A shadow caster doesn't cast a shadow onto itself
-          if (wall.id === wallShadow.shadowCasterId) {
+          if (wall.id === shadow.caster.id) {
             continue;
           }
 
           // Check if this wall's lower edge is below the shadow caster's
           // lower edge (if it is, then the shadow won't cast onto this wall)
-          if (wallInterval.bottom >= wallShadow.shadowRegionInterval.bottom) {
+          if (wallInterval.bottom >= shadowCasterInterval.bottom) {
             continue;
           }
 
           // Check if this shadow has one or more edges (if it has no edges,
           // then they're probably both pointing in the wrong direction and
           // as such won't cast onto this wall)
-          if (wallShadow.leftEdge === null && wallShadow.rightEdge === null) {
+          if (shadow.leftEdge === null && shadow.rightEdge === null) {
             continue;
           }
 
           // Find where the left and right edges of the shadow intercept the
           // lower edge of the receiving wall
           let leftIntercept: number | null = null;
-          if (wallShadow.leftEdge) {
+          if (shadow.leftEdge) {
             leftIntercept = lineYIntercept(
-              wallShadow.leftEdge,
+              shadow.leftEdge,
               wallInterval.bottom
             );
           }
 
           let rightIntercept: number | null = null;
-          if (wallShadow.rightEdge) {
+          if (shadow.rightEdge) {
             rightIntercept = lineYIntercept(
-              wallShadow.rightEdge,
+              shadow.rightEdge,
               wallInterval.bottom
             );
           }
@@ -381,25 +393,25 @@ export class Light {
           // the shadow receiver and the shadow is pointing away from the
           // receiving wall, sometimes a shadow appears due to the intercept
           // being behind the start of the shadow
-          if (wallShadow.shadowRegionInterval.top < wallInterval.bottom) {
+          if (shadowCasterInterval.top < wallInterval.bottom) {
             // Shadow caster is to the left of shadow receiver
             if (
-              wallShadow.shadowRegionInterval.right < wallInterval.left &&
+              shadowCasterInterval.right < wallInterval.left &&
               rightIntercept &&
-              wallShadow.rightEdge &&
-              rightIntercept > wallShadow.rightEdge.start.x &&
-              wallShadow.rightEdge.start.x > wallShadow.rightEdge.end.x
+              shadow.rightEdge &&
+              rightIntercept > shadow.rightEdge.start.x &&
+              shadow.rightEdge.start.x > shadow.rightEdge.end.x
             ) {
               continue;
             }
 
             // Shadow caster is to the right of shadow receiver
             if (
-              wallShadow.shadowRegionInterval.left > wallInterval.right &&
+              shadowCasterInterval.left > wallInterval.right &&
               leftIntercept &&
-              wallShadow.leftEdge &&
-              leftIntercept < wallShadow.leftEdge.start.x &&
-              wallShadow.leftEdge.start.x < wallShadow.leftEdge.end.x
+              shadow.leftEdge &&
+              leftIntercept < shadow.leftEdge.start.x &&
+              shadow.leftEdge.start.x < shadow.leftEdge.end.x
             ) {
               continue;
             }
@@ -407,15 +419,15 @@ export class Light {
 
           const min = Math.max(
             wallInterval.left,
-            wallShadow.leftEdge
-              ? lineYIntercept(wallShadow.leftEdge, wallInterval.bottom) ??
+            shadow.leftEdge
+              ? lineYIntercept(shadow.leftEdge, wallInterval.bottom) ??
                   -Infinity
               : -Infinity
           );
           const max = Math.min(
             wallInterval.right,
-            wallShadow.rightEdge
-              ? lineYIntercept(wallShadow.rightEdge, wallInterval.bottom) ??
+            shadow.rightEdge
+              ? lineYIntercept(shadow.rightEdge, wallInterval.bottom) ??
                   Infinity
               : Infinity
           );
@@ -465,21 +477,21 @@ export class Light {
     return vec.dot(lightNormal, edgeNormal) <= 0;
   }
 
-  private prepareShadow(shadowRegion: Rectangle): {
-    shadowRegionInterval: Interval2d;
+  private prepareRegionShadow(shadowCasterRectangle: Rectangle): {
+    shadowCasterInterval: Interval2d;
     leftEdge: Line | null;
     rightEdge: Line | null;
     vertices: PolygonVertices;
   } {
     const lightPosition = vec.cpy(this.position);
     const lightRadius = this._radius;
-    const shadowRegionInterval = rectangleToInterval(shadowRegion);
-    const shadowRegionVertices = rectangleVertices(shadowRegion);
+    const shadowCasterInterval = rectangleToInterval(shadowCasterRectangle);
+    const shadowCasterVertices = rectangleVertices(shadowCasterRectangle);
     const shadowEdges: Line[] = [];
 
-    for (let i = 0; i < shadowRegionVertices.length; i++) {
-      const previous = at(shadowRegionVertices, i - 1);
-      const current = shadowRegionVertices[i];
+    for (let i = 0; i < shadowCasterVertices.length; i++) {
+      const previous = at(shadowCasterVertices, i - 1);
+      const current = shadowCasterVertices[i];
 
       if (!this.lineIsFacing({ start: previous, end: current })) {
         const vertex1 = vec.sub(previous, lightPosition);
@@ -518,7 +530,7 @@ export class Light {
     let leftEdge: Line | null = null;
     let rightEdge: Line | null = null;
     const shadowPolygon: PolygonVertices = [];
-    switch (sector2d(this.position, shadowRegionInterval)) {
+    switch (sector2d(this.position, shadowCasterInterval)) {
       case Sector2d.TopLeft:
         if (shadowEdges.length !== 4) {
           break;
@@ -696,7 +708,7 @@ export class Light {
     }
 
     return {
-      shadowRegionInterval,
+      shadowCasterInterval,
       leftEdge,
       rightEdge,
       vertices: shadowPolygon,

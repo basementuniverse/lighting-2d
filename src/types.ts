@@ -47,28 +47,6 @@ export type Rectangle = {
   size: vec;
 };
 
-type RegionShadowOptions = {
-  type: 'region';
-  region: Rectangle;
-};
-
-type SpriteShadowOptions = {
-  type: 'sprite';
-  sprite: any;
-  offset?: number;
-};
-
-type CircleShadowOptions = {
-  type: 'circle';
-  radius: number;
-  offset?: number;
-};
-
-export type ShadowOptions =
-  | RegionShadowOptions
-  | SpriteShadowOptions
-  | CircleShadowOptions;
-
 export type PolygonVertices = (
   | vec
   | ((context: CanvasRenderingContext2D) => void)

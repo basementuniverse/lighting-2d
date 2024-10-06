@@ -4,6 +4,7 @@ import { at } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import Game from './Game';
 import { Light } from './Light';
+import { RegionShadowCaster } from './RegionShadowCaster';
 import { Line, Rectangle, Sector2d } from './types';
 import {
   lineInRectangle,
@@ -14,7 +15,7 @@ import {
   rectanglesIntersect,
   sector2d,
 } from './utils';
-import { Wall } from './Wall';
+import { WallShadowReceiver } from './WallShadowReceiver';
 
 export class TestScene {
   private TEST_RECT: Rectangle = {
@@ -27,16 +28,16 @@ export class TestScene {
   private lineStart: vec | null = null;
   private lineEnd: vec | null = null;
 
-  private wall1: Wall;
-  private wall2: Wall;
+  private caster: RegionShadowCaster;
+  private receiver: WallShadowReceiver;
   private light: Light;
 
   public initialise() {
-    this.wall1 = new Wall({
+    this.caster = new RegionShadowCaster({
       position: vec(200, 500),
       size: vec(100, 100),
     });
-    this.wall2 = new Wall({
+    this.receiver = new WallShadowReceiver({
       position: vec(350, 500),
       size: vec(100, 100),
     });
@@ -61,20 +62,20 @@ export class TestScene {
       }
     }
 
-    this.wall1.update(dt);
-    this.wall2.update(dt);
+    this.caster.update(dt);
+    this.receiver.update(dt);
     this.light.update(dt);
 
     // Handle wall select
     if (InputManager.mousePressed()) {
-      this.wall1.selected = false;
-      this.wall2.selected = false;
+      this.caster.selected = false;
+      this.receiver.selected = false;
       this.light.selected = false;
 
-      if (this.wall1.hovered) {
-        this.wall1.selected = true;
-      } else if (this.wall2.hovered) {
-        this.wall2.selected = true;
+      if (this.caster.hovered) {
+        this.caster.selected = true;
+      } else if (this.receiver.hovered) {
+        this.receiver.selected = true;
       } else if (this.light.hovered) {
         this.light.selected = true;
       }
@@ -161,19 +162,18 @@ export class TestScene {
     // Test rectInRect
     // -------------------------------------------------------------------------
     // #region
-    this.wall1.draw(context);
-    this.wall2.draw(context);
+    this.receiver.draw(context);
 
     Debug.value(
       'intersection',
       rectanglesIntersect(
         {
-          position: this.wall1.position,
-          size: this.wall1.size,
+          position: this.caster.position,
+          size: this.caster.size,
         },
         {
-          position: this.wall2.position,
-          size: this.wall2.size,
+          position: this.receiver.position,
+          size: this.receiver.size,
         }
       )
         ? 'yes'
@@ -188,8 +188,8 @@ export class TestScene {
     const SHADOW_BUFFER = 20;
     const lightPosition = this.light.position;
     const lightRadius = this.light.radius;
-    const wallPosition = this.wall1.position;
-    const wallSize = this.wall1.size;
+    const wallPosition = this.caster.position;
+    const wallSize = this.caster.size;
     const wallVertices = rectangleVertices({
       position: wallPosition,
       size: wallSize,
@@ -270,8 +270,8 @@ export class TestScene {
     for (const [i, line] of shadowEdges.entries()) {
       context.strokeStyle = 'grey';
       if (
-        this.light.position.x > this.wall1.position.x &&
-        this.light.position.y < this.wall1.position.y
+        this.light.position.x > this.caster.position.x &&
+        this.light.position.y < this.caster.position.y
       ) {
         if (i === 2) {
           context.strokeStyle = 'red';
@@ -280,8 +280,8 @@ export class TestScene {
           context.strokeStyle = 'green';
         }
       } else if (
-        this.light.position.x > this.wall1.position.x &&
-        this.light.position.y < this.wall1.position.y + this.wall1.size.y
+        this.light.position.x > this.caster.position.x &&
+        this.light.position.y < this.caster.position.y + this.caster.size.y
       ) {
         if (i === 4) {
           context.strokeStyle = 'red';
@@ -502,26 +502,26 @@ export class TestScene {
     // -------------------------------------------------------------------------
     // Test shadow volume casting on wall
     // -------------------------------------------------------------------------
-    const wall1Interval = rectangleToInterval({
-      position: this.wall1.position,
-      size: this.wall1.size,
+    const casterInterval = rectangleToInterval({
+      position: this.caster.position,
+      size: this.caster.size,
     });
-    const wall2Interval = rectangleToInterval({
-      position: this.wall2.position,
-      size: this.wall2.size,
+    const receiverInterval = rectangleToInterval({
+      position: this.receiver.position,
+      size: this.receiver.size,
     });
 
-    if (wall1Interval.bottom > wall2Interval.bottom) {
+    if (casterInterval.bottom > receiverInterval.bottom) {
       let rightIntercept: number | null = null;
       if (rightEdge) {
-        rightIntercept = lineYIntercept(rightEdge, wall2Interval.bottom);
+        rightIntercept = lineYIntercept(rightEdge, receiverInterval.bottom);
         if (rightIntercept) {
           Debug.marker(
             'right_intercept',
             '',
             vec(
-              Math.max(rightIntercept, wall2Interval.left),
-              wall2Interval.bottom
+              Math.max(rightIntercept, receiverInterval.left),
+              receiverInterval.bottom
             )
           );
         }
@@ -529,14 +529,14 @@ export class TestScene {
 
       let leftIntercept: number | null = null;
       if (leftEdge) {
-        leftIntercept = lineYIntercept(leftEdge, wall2Interval.bottom);
+        leftIntercept = lineYIntercept(leftEdge, receiverInterval.bottom);
         if (leftIntercept) {
           Debug.marker(
             'left_intercept',
             '',
             vec(
-              Math.min(leftIntercept, wall2Interval.right),
-              wall2Interval.bottom
+              Math.min(leftIntercept, receiverInterval.right),
+              receiverInterval.bottom
             )
           );
         }
@@ -548,17 +548,17 @@ export class TestScene {
         show = false;
       }
 
-      // wall1 = shadow caster
-      // wall2 = shadow receiver
+      // caster = shadow caster
+      // receiver = shadow receiver
 
       // shadow caster is partially above and below shadow receiver
       // edge case: shadow is pointing away from shadow receiver but the
       // shadow would still appear because the intercept is behind where the
       // shadow edge starts
-      if (wall1Interval.top < wall2Interval.bottom) {
+      if (casterInterval.top < receiverInterval.bottom) {
         // shadow caster is to the left of shadow receiver
         if (
-          wall1Interval.right < wall2Interval.left &&
+          casterInterval.right < receiverInterval.left &&
           rightIntercept &&
           rightEdge &&
           rightIntercept > rightEdge.start.x &&
@@ -570,7 +570,7 @@ export class TestScene {
         // shadow caster is to the right of shadow receiver
         // edge case...
         if (
-          wall1Interval.left > wall2Interval.right &&
+          casterInterval.left > receiverInterval.right &&
           leftIntercept &&
           leftEdge &&
           leftIntercept < leftEdge.start.x &&
@@ -581,27 +581,27 @@ export class TestScene {
       }
 
       const min = Math.max(
-        wall2Interval.left,
+        receiverInterval.left,
         leftEdge
-          ? lineYIntercept(leftEdge, wall2Interval.bottom) ?? -Infinity
+          ? lineYIntercept(leftEdge, receiverInterval.bottom) ?? -Infinity
           : -Infinity
       );
       const max = Math.min(
-        wall2Interval.right,
+        receiverInterval.right,
         rightEdge
-          ? lineYIntercept(rightEdge, wall2Interval.bottom) ?? Infinity
+          ? lineYIntercept(rightEdge, receiverInterval.bottom) ?? Infinity
           : Infinity
       );
 
       // Debug.marker(
       //   'min',
       //   '',
-      //   vec(min, wall2Interval.bottom)
+      //   vec(min, receiverInterval.bottom)
       // );
       // Debug.marker(
       //   'max',
       //   '',
-      //   vec(max, wall2Interval.bottom)
+      //   vec(max, receiverInterval.bottom)
       // );
 
       // Don't render the shadow if it's got negative width
@@ -610,15 +610,15 @@ export class TestScene {
       }
 
       // Don't render the shadow if it's outside the wall boundaries
-      if (min > wall2Interval.right || max < wall2Interval.left) {
+      if (min > receiverInterval.right || max < receiverInterval.left) {
         show = false;
       }
 
       if (show) {
-        Debug.border(`wall_shadow`, '', vec(min, wall2Interval.top), {
+        Debug.border(`wall_shadow`, '', vec(min, receiverInterval.top), {
           showLabel: false,
           showValue: false,
-          size: vec(max - min, this.wall2.size.y),
+          size: vec(max - min, this.receiver.size.y),
           borderColour: 'purple',
           borderWidth: 3,
         });

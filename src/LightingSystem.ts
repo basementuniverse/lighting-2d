@@ -1,7 +1,10 @@
+import { CircleShadowCaster } from './CircleShadowCaster';
 import Game from './Game';
 import { GroundShadowReceiver } from './GroundShadowReceiver';
 import { Light } from './Light';
-import { Wall } from './Wall';
+import { RegionShadowCaster } from './RegionShadowCaster';
+import { SpriteShadowCaster } from './SpriteShadowCaster';
+import { WallShadowReceiver } from './WallShadowReceiver';
 
 export class LightingSystem {
   public static readonly WALL_LIGHTING_Y_OFFSET = -30;
@@ -49,21 +52,35 @@ export class LightingSystem {
     this.lights.forEach(light => light.update(dt));
   }
 
-  public prepare(grounds: GroundShadowReceiver[], walls: Wall[]) {
-    this.lights.forEach(light => light.prepare(grounds, walls));
+  public prepare(
+    groundShadowReceivers: GroundShadowReceiver[],
+    wallShadowReceivers: WallShadowReceiver[],
+    regionShadowCasters: RegionShadowCaster[],
+    spriteShadowCasters: SpriteShadowCaster[],
+    circleShadowCasters: CircleShadowCaster[]
+  ) {
+    this.lights.forEach(light =>
+      light.prepare(
+        groundShadowReceivers,
+        wallShadowReceivers,
+        regionShadowCasters,
+        spriteShadowCasters,
+        circleShadowCasters
+      )
+    );
 
     // Prepare ground mask
     this.groundMaskCanvas.width = Game.screen.x;
     this.groundMaskCanvas.height = Game.screen.y;
     this.groundMaskContext.save();
 
-    grounds.forEach(ground => {
+    groundShadowReceivers.forEach(ground => {
       ground.drawMask(this.groundMaskContext);
     });
 
     this.groundMaskContext.globalCompositeOperation = 'destination-out';
 
-    walls.forEach(wall => {
+    wallShadowReceivers.forEach(wall => {
       wall.drawMask(this.groundMaskContext);
     });
 
@@ -74,7 +91,7 @@ export class LightingSystem {
     this.wallMaskCanvas.height = Game.screen.y;
     this.wallMaskContext.save();
 
-    walls.forEach(wall => {
+    wallShadowReceivers.forEach(wall => {
       wall.drawMask(this.wallMaskContext);
     });
 

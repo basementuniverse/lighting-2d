@@ -13,7 +13,7 @@ export class GroundShadowReceiver {
   private static readonly MIN_SIZE = vec(20, 20);
   private static readonly MAX_SIZE = vec(600, 600);
 
-  public readonly type = 'ground';
+  public readonly type = 'GroundShadowReceiver';
 
   public id: string = '';
   public folder: dat.GUI | null = null;
@@ -32,8 +32,9 @@ export class GroundShadowReceiver {
       id: data.id ?? uuid().split('-')[0],
     });
 
-    this.folder = Game.gui.addFolder(`Ground ${this.id}`);
-    this.folder.add(this, 'colour');
+    this.folder = Game.gui.addFolder(`GroundShadowReceiver ${this.id}`);
+    this.folder.add(this.position, 'x');
+    this.folder.add(this.position, 'y');
     this.folder
       .add(
         this.size,
@@ -50,6 +51,7 @@ export class GroundShadowReceiver {
         GroundShadowReceiver.MAX_SIZE.y
       )
       .name('height');
+    this.folder.add(this, 'colour');
   }
 
   public serialise(): any {
@@ -100,7 +102,7 @@ export class GroundShadowReceiver {
       }
     }
 
-    Debug.border(`${this.id}_border`, '', this.position, {
+    Debug.border(`GroundShadowReceiver ${this.id}`, '', this.position, {
       showLabel: false,
       showValue: false,
       size: this.size,
