@@ -1,6 +1,7 @@
 import { clamp, floatEquals } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import {
+  AnchorPosition,
   Colour,
   Interval1d,
   Interval2d,
@@ -323,4 +324,38 @@ export function sector2d(point: vec, interval: Interval2d): Sector2d {
       [Sector1d.After]: Sector2d.BottomRight,
     },
   }[x][y];
+}
+
+/**
+ * Get the absolute position of an anchor point in the center of an edge or
+ * in a corner of a rectangle
+ */
+export function anchorPosition(
+  rectangle: Rectangle,
+  anchor: AnchorPosition
+): vec {
+  const interval = rectangleToInterval(rectangle);
+  const halfSize = vec.mul(rectangle.size, 0.5);
+
+  switch (anchor) {
+    case AnchorPosition.TopLeft:
+      return vec(interval.left, interval.top);
+    case AnchorPosition.Top:
+      return vec(interval.left + halfSize.x, interval.top);
+    case AnchorPosition.TopRight:
+      return vec(interval.right, interval.top);
+    case AnchorPosition.RightMiddle:
+      return vec(interval.right, interval.top + halfSize.y);
+    case AnchorPosition.BottomRight:
+      return vec(interval.right, interval.bottom);
+    case AnchorPosition.Bottom:
+      return vec(interval.left + halfSize.x, interval.bottom);
+    case AnchorPosition.BottomLeft:
+      return vec(interval.left, interval.bottom);
+    case AnchorPosition.Left:
+      return vec(interval.left, interval.top + halfSize.y);
+    case AnchorPosition.Centre:
+    default:
+      return vec.add(rectangle.position, halfSize);
+  }
 }

@@ -1,9 +1,11 @@
+import Camera from '@basementuniverse/camera';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { at } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import Game from './Game';
 import { Light } from './Light';
+import { LightingScene } from './LightingScene';
 import { RegionShadowCaster } from './RegionShadowCaster';
 import { Line, Rectangle, Sector2d } from './types';
 import {
@@ -22,8 +24,9 @@ export class TestScene {
     position: vec(200, 200),
     size: vec(300, 200),
   };
-
   private TEST_Y = 700;
+
+  public camera: Camera;
 
   private lineStart: vec | null = null;
   private lineEnd: vec | null = null;
@@ -33,15 +36,22 @@ export class TestScene {
   private light: Light;
 
   public initialise() {
-    this.caster = new RegionShadowCaster({
+    this.camera = new Camera(vec(), {
+      minScale: 0.5,
+      maxScale: 5,
+      moveEaseAmount: 0.95,
+      scaleEaseAmount: 0.95,
+    });
+
+    this.caster = new RegionShadowCaster(this as unknown as LightingScene, {
       position: vec(200, 500),
       size: vec(100, 100),
     });
-    this.receiver = new WallShadowReceiver({
+    this.receiver = new WallShadowReceiver(this as unknown as LightingScene, {
       position: vec(350, 500),
       size: vec(100, 100),
     });
-    this.light = new Light({
+    this.light = new Light(this as unknown as LightingScene, {
       position: vec(300, 300),
       radius: 10,
     });
@@ -51,6 +61,9 @@ export class TestScene {
     Debug.value('A-click to set line start', '');
     Debug.value('B-click to set line end', '');
     Debug.value('CTRL-drag to resize', '');
+
+    this.camera.positionImmediate = vec(Game.screen.x / 2, Game.screen.y / 2);
+    this.camera.update(Game.screen);
 
     if (InputManager.mousePressed()) {
       if (InputManager.keyDown('KeyA')) {
@@ -84,8 +97,25 @@ export class TestScene {
 
   public draw(context: CanvasRenderingContext2D) {
     context.save();
+    this.camera.setTransforms(context);
+
     context.fillStyle = 'white';
     context.fillRect(0, 0, Game.screen.x, Game.screen.y);
+
+    // -------------------------------------------------------------------------
+    // Test nested translate
+    // -------------------------------------------------------------------------
+    // #region
+    context.save();
+    context.fillStyle = 'red';
+    context.translate(100, 100);
+    context.fillRect(0, 0, 100, 100);
+    context.save();
+    context.translate(100, 100);
+    context.fillRect(0, 0, 100, 100);
+    context.restore();
+    context.restore();
+    // #endregion
 
     // -------------------------------------------------------------------------
     // Test lineInRect
@@ -624,6 +654,9 @@ export class TestScene {
         });
       }
     }
+
+    Debug.draw(context, Game.DEBUG_MODES[Game.debugMode].debugLevel);
+    context.restore();
   }
 
   private edgeIsFacingLight(

@@ -16,6 +16,7 @@ export class CircleShadowCaster implements ShadowCaster {
 
   public readonly type = 'CircleShadowCaster';
 
+  private scene: LightingScene;
   public id: string = '';
   public folder: dat.GUI | null = null;
 
@@ -27,7 +28,12 @@ export class CircleShadowCaster implements ShadowCaster {
   private dragging = false;
   private dragOffset: vec | null = null;
 
-  public constructor(data: Partial<CircleShadowCaster> = {}) {
+  public constructor(
+    scene: LightingScene,
+    data: Partial<CircleShadowCaster> = {}
+  ) {
+    this.scene = scene;
+
     Object.assign(this, data, {
       id: data.id ?? uuid().split('-')[0],
     });
@@ -62,8 +68,11 @@ export class CircleShadowCaster implements ShadowCaster {
     };
   }
 
-  public static deserialise(data: any): CircleShadowCaster {
-    return new CircleShadowCaster(data);
+  public static deserialise(
+    scene: LightingScene,
+    data: any
+  ): CircleShadowCaster {
+    return new CircleShadowCaster(scene, data);
   }
 
   public destroy() {
@@ -73,14 +82,18 @@ export class CircleShadowCaster implements ShadowCaster {
   }
 
   public update(dt: number) {
-    this.hovered = pointInRectangle(InputManager.mousePosition, {
+    const mouseWorldPosition = this.scene.camera.positionToWorld(
+      InputManager.mousePosition
+    );
+
+    this.hovered = pointInRectangle(mouseWorldPosition, {
       position: this.position,
       size: this.size,
     });
 
     if (InputManager.mouseDown() && this.selected && !this.dragging) {
       this.dragging = true;
-      this.dragOffset = vec.sub(InputManager.mousePosition, this.position);
+      this.dragOffset = vec.sub(mouseWorldPosition, this.position);
     }
 
     if (!InputManager.mouseDown()) {
@@ -90,7 +103,7 @@ export class CircleShadowCaster implements ShadowCaster {
 
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
-        let newSize = vec.sub(InputManager.mousePosition, this.position);
+        let newSize = vec.sub(mouseWorldPosition, this.position);
         if (InputManager.keyDown('ShiftLeft')) {
           newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
         }
@@ -100,7 +113,7 @@ export class CircleShadowCaster implements ShadowCaster {
           CircleShadowCaster.MAX_SIZE
         );
       } else {
-        let newPosition = vec.sub(InputManager.mousePosition, this.dragOffset);
+        let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
         if (InputManager.keyDown('ShiftLeft')) {
           newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
         }
@@ -110,6 +123,7 @@ export class CircleShadowCaster implements ShadowCaster {
 
     Debug.border(`CircleShadowCaster ${this.id}`, '', this.position, {
       level: 1,
+      space: 'world',
       showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       size: this.size,

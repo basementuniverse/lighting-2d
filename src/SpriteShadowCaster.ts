@@ -5,6 +5,7 @@ import { v4 as uuid } from 'uuid';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
 import ShadowCaster from './ShadowCaster';
+import { AnchorPosition } from './types';
 import { clampVec, pointInRectangle, quantizeVec } from './utils';
 
 export class SpriteShadowCaster implements ShadowCaster {
@@ -16,19 +17,26 @@ export class SpriteShadowCaster implements ShadowCaster {
 
   public readonly type = 'SpriteShadowCaster';
 
+  private scene: LightingScene;
   public id: string = '';
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
   public size: vec = SpriteShadowCaster.DEFAULT_SIZE;
   public spriteName: string = '';
+  public anchor: AnchorPosition = AnchorPosition.Centre;
 
   public hovered = false;
   public selected = false;
   private dragging = false;
   private dragOffset: vec | null = null;
 
-  public constructor(data: Partial<SpriteShadowCaster> = {}) {
+  public constructor(
+    scene: LightingScene,
+    data: Partial<SpriteShadowCaster> = {}
+  ) {
+    this.scene = scene;
+
     Object.assign(this, data, {
       id: data.id ?? uuid().split('-')[0],
     });
@@ -53,6 +61,11 @@ export class SpriteShadowCaster implements ShadowCaster {
       )
       .name('height');
     this.folder.add(this, 'spriteName');
+    this.folder.add(this, 'anchor', Object.values(AnchorPosition));
+  }
+
+  public get sprite(): HTMLImageElement | null {
+    return LightingScene.SPRITES[this.spriteName] ?? null;
   }
 
   public serialise(): any {
@@ -65,8 +78,11 @@ export class SpriteShadowCaster implements ShadowCaster {
     };
   }
 
-  public static deserialise(data: any): SpriteShadowCaster {
-    return new SpriteShadowCaster(data);
+  public static deserialise(
+    scene: LightingScene,
+    data: any
+  ): SpriteShadowCaster {
+    return new SpriteShadowCaster(scene, data);
   }
 
   public destroy() {
@@ -76,14 +92,18 @@ export class SpriteShadowCaster implements ShadowCaster {
   }
 
   public update(dt: number) {
-    this.hovered = pointInRectangle(InputManager.mousePosition, {
+    const mouseWorldPosition = this.scene.camera.positionToWorld(
+      InputManager.mousePosition
+    );
+
+    this.hovered = pointInRectangle(mouseWorldPosition, {
       position: this.position,
       size: this.size,
     });
 
     if (InputManager.mouseDown() && this.selected && !this.dragging) {
       this.dragging = true;
-      this.dragOffset = vec.sub(InputManager.mousePosition, this.position);
+      this.dragOffset = vec.sub(mouseWorldPosition, this.position);
     }
 
     if (!InputManager.mouseDown()) {
@@ -93,7 +113,7 @@ export class SpriteShadowCaster implements ShadowCaster {
 
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
-        let newSize = vec.sub(InputManager.mousePosition, this.position);
+        let newSize = vec.sub(mouseWorldPosition, this.position);
         if (InputManager.keyDown('ShiftLeft')) {
           newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
         }
@@ -103,7 +123,7 @@ export class SpriteShadowCaster implements ShadowCaster {
           SpriteShadowCaster.MAX_SIZE
         );
       } else {
-        let newPosition = vec.sub(InputManager.mousePosition, this.dragOffset);
+        let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
         if (InputManager.keyDown('ShiftLeft')) {
           newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
         }
@@ -113,6 +133,7 @@ export class SpriteShadowCaster implements ShadowCaster {
 
     Debug.border(`SpriteShadowCaster ${this.id}`, '', this.position, {
       level: 1,
+      space: 'world',
       showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       size: this.size,

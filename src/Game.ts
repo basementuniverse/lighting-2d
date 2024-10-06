@@ -128,7 +128,5 @@ export default class Game {
     if (this.scene) {
       this.scene.draw(this.context);
     }
-
-    Debug.draw(this.context, Game.DEBUG_MODES[Game.debugMode].debugLevel);
   }
 }

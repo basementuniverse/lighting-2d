@@ -22,6 +22,7 @@ export class WallShadowReceiver {
 
   public readonly type = 'WallShadowReceiver';
 
+  private scene: LightingScene;
   public id: string = '';
   public folder: dat.GUI | null = null;
 
@@ -35,7 +36,12 @@ export class WallShadowReceiver {
   private dragging = false;
   private dragOffset: vec | null = null;
 
-  public constructor(data: Partial<WallShadowReceiver> = {}) {
+  public constructor(
+    scene: LightingScene,
+    data: Partial<WallShadowReceiver> = {}
+  ) {
+    this.scene = scene;
+
     Object.assign(this, data, {
       id: data.id ?? uuid().split('-')[0],
     });
@@ -74,8 +80,11 @@ export class WallShadowReceiver {
     };
   }
 
-  public static deserialise(data: any): WallShadowReceiver {
-    return new WallShadowReceiver(data);
+  public static deserialise(
+    scene: LightingScene,
+    data: any
+  ): WallShadowReceiver {
+    return new WallShadowReceiver(scene, data);
   }
 
   public destroy() {
@@ -84,14 +93,17 @@ export class WallShadowReceiver {
     }
   }
 
-  public merge(b: WallShadowReceiver): WallShadowReceiver {
+  public merge(
+    scene: LightingScene,
+    b: WallShadowReceiver
+  ): WallShadowReceiver {
     const position = minVec(this.position, b.position);
     const br = maxVec(
       vec.add(this.position, this.size),
       vec.add(b.position, b.size)
     );
 
-    return new WallShadowReceiver({
+    return new WallShadowReceiver(scene, {
       position,
       size: vec.sub(br, position),
       colour: this.colour,
@@ -100,14 +112,18 @@ export class WallShadowReceiver {
   }
 
   public update(dt: number) {
-    this.hovered = pointInRectangle(InputManager.mousePosition, {
+    const mouseWorldPosition = this.scene.camera.positionToWorld(
+      InputManager.mousePosition
+    );
+
+    this.hovered = pointInRectangle(mouseWorldPosition, {
       position: this.position,
       size: this.size,
     });
 
     if (InputManager.mouseDown() && this.selected && !this.dragging) {
       this.dragging = true;
-      this.dragOffset = vec.sub(InputManager.mousePosition, this.position);
+      this.dragOffset = vec.sub(mouseWorldPosition, this.position);
     }
 
     if (!InputManager.mouseDown()) {
@@ -117,7 +133,7 @@ export class WallShadowReceiver {
 
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
-        let newSize = vec.sub(InputManager.mousePosition, this.position);
+        let newSize = vec.sub(mouseWorldPosition, this.position);
         if (InputManager.keyDown('ShiftLeft')) {
           newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
         }
@@ -127,7 +143,7 @@ export class WallShadowReceiver {
           WallShadowReceiver.MAX_SIZE
         );
       } else {
-        let newPosition = vec.sub(InputManager.mousePosition, this.dragOffset);
+        let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
         if (InputManager.keyDown('ShiftLeft')) {
           newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
         }
@@ -137,6 +153,7 @@ export class WallShadowReceiver {
 
     Debug.border(`WallShadowReceiver ${this.id}`, '', this.position, {
       level: 1,
+      space: 'world',
       showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       labelOffset: vec(10, 30),

@@ -11,7 +11,7 @@
   "author": "Gordon Larrigan <gordonlarrigan@gmail.com> (https://gordonlarrigan.com)",
   "license": "MIT",
   "dependencies": {
-    "@basementuniverse/camera": "^1.2.0",
+    "@basementuniverse/camera": "^1.3.0",
     "@basementuniverse/debug": "^1.2.0",
     "@basementuniverse/input-manager": "^1.0.5",
     "@basementuniverse/parsecolor": "^1.0.2",

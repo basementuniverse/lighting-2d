@@ -16,6 +16,7 @@ export class GroundShadowReceiver {
 
   public readonly type = 'GroundShadowReceiver';
 
+  private scene: LightingScene;
   public id: string = '';
   public folder: dat.GUI | null = null;
 
@@ -28,7 +29,12 @@ export class GroundShadowReceiver {
   private dragging = false;
   private dragOffset: vec | null = null;
 
-  public constructor(data: Partial<GroundShadowReceiver> = {}) {
+  public constructor(
+    scene: LightingScene,
+    data: Partial<GroundShadowReceiver> = {}
+  ) {
+    this.scene = scene;
+
     Object.assign(this, data, {
       id: data.id ?? uuid().split('-')[0],
     });
@@ -65,8 +71,11 @@ export class GroundShadowReceiver {
     };
   }
 
-  public static deserialise(data: any): GroundShadowReceiver {
-    return new GroundShadowReceiver(data);
+  public static deserialise(
+    scene: LightingScene,
+    data: any
+  ): GroundShadowReceiver {
+    return new GroundShadowReceiver(scene, data);
   }
 
   public destroy() {
@@ -76,14 +85,18 @@ export class GroundShadowReceiver {
   }
 
   public update(dt: number) {
-    this.hovered = pointInRectangle(InputManager.mousePosition, {
+    const mouseWorldPosition = this.scene.camera.positionToWorld(
+      InputManager.mousePosition
+    );
+
+    this.hovered = pointInRectangle(mouseWorldPosition, {
       position: this.position,
       size: this.size,
     });
 
     if (InputManager.mouseDown() && this.selected && !this.dragging) {
       this.dragging = true;
-      this.dragOffset = vec.sub(InputManager.mousePosition, this.position);
+      this.dragOffset = vec.sub(mouseWorldPosition, this.position);
     }
 
     if (!InputManager.mouseDown()) {
@@ -93,7 +106,7 @@ export class GroundShadowReceiver {
 
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
-        let newSize = vec.sub(InputManager.mousePosition, this.position);
+        let newSize = vec.sub(mouseWorldPosition, this.position);
         if (InputManager.keyDown('ShiftLeft')) {
           newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
         }
@@ -103,7 +116,7 @@ export class GroundShadowReceiver {
           GroundShadowReceiver.MAX_SIZE
         );
       } else {
-        let newPosition = vec.sub(InputManager.mousePosition, this.dragOffset);
+        let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
         if (InputManager.keyDown('ShiftLeft')) {
           newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
         }
@@ -113,6 +126,7 @@ export class GroundShadowReceiver {
 
     Debug.border(`GroundShadowReceiver ${this.id}`, '', this.position, {
       level: 1,
+      space: 'world',
       showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       size: this.size,

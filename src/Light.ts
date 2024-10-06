@@ -5,8 +5,10 @@ import { at, clamp, exclude, remap } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import { CircleShadowCaster } from './CircleShadowCaster';
+import * as constants from './constants';
 import Game from './Game';
 import { GroundShadowReceiver } from './GroundShadowReceiver';
+import { LightingScene } from './LightingScene';
 import { LightingSystem } from './LightingSystem';
 import { RegionShadowCaster } from './RegionShadowCaster';
 import ShadowCaster from './ShadowCaster';
@@ -20,6 +22,7 @@ import {
   Sector2d,
 } from './types';
 import {
+  anchorPosition,
   colourToString,
   lineYIntercept,
   overlap1d,
@@ -30,6 +33,36 @@ import {
   sector2d,
 } from './utils';
 import { WallShadowReceiver } from './WallShadowReceiver';
+
+type RegionShadow = {
+  /**
+   * The entity that is casting this shadow
+   */
+  caster: ShadowCaster;
+
+  /**
+   * The leftmost edge of the shadow
+   */
+  leftEdge: Line | null;
+
+  /**
+   * The rightmost edge of the shadow
+   */
+  rightEdge: Line | null;
+};
+
+type SpriteShadow = {
+  /**
+   * The entity that is casting this shadow
+   */
+  caster: ShadowCaster;
+
+  /**
+   * A line segment representing the start and end of the sprite shadow, and
+   * the angle of the sprite
+   */
+  edge: Line | null;
+};
 
 export class Light {
   private static readonly DEFAULT_RADIUS = 100;
@@ -45,6 +78,7 @@ export class Light {
 
   public readonly type = 'Light';
 
+  private scene: LightingScene;
   public id: string = '';
   public folder: dat.GUI | null = null;
 
@@ -53,6 +87,7 @@ export class Light {
   private _colour: string = Light.DEFAULT_COLOUR;
   public colourObject: Colour;
   private _intensity: number = Light.DEFAULT_INTENSITY;
+  public castShadows: boolean = true;
 
   public hovered = false;
   public selected = false;
@@ -70,7 +105,9 @@ export class Light {
 
   private dirty = true;
 
-  public constructor(data: Partial<Light> = {}) {
+  public constructor(scene: LightingScene, data: Partial<Light> = {}) {
+    this.scene = scene;
+
     Object.assign(this, exclude(data, 'radius', 'colour', 'intensity'), {
       id: data.id ?? uuid().split('-')[0],
       _radius: data.radius ?? Light.DEFAULT_RADIUS,
@@ -84,6 +121,7 @@ export class Light {
     this.folder.add(this, 'radius', Light.MIN_RADIUS, Light.MAX_RADIUS);
     this.folder.add(this, 'colour');
     this.folder.add(this, 'intensity', 0, 1);
+    this.folder.add(this, 'castShadows');
 
     this.colourObject = parseColor(this._colour);
 
@@ -137,11 +175,12 @@ export class Light {
       radius: this._radius,
       colour: this._colour,
       intensity: this._intensity,
+      castShadows: this.castShadows,
     };
   }
 
-  public static deserialise(data: any): Light {
-    return new Light(data);
+  public static deserialise(scene: LightingScene, data: any): Light {
+    return new Light(scene, data);
   }
 
   public destroy() {
@@ -151,13 +190,16 @@ export class Light {
   }
 
   public update(dt: number) {
+    const mouseWorldPosition = this.scene.camera.positionToWorld(
+      InputManager.mousePosition
+    );
+
     this.hovered =
-      vec.len(vec.sub(InputManager.mousePosition, this.position)) <
-      Light.HOVER_RADIUS;
+      vec.len(vec.sub(mouseWorldPosition, this.position)) < Light.HOVER_RADIUS;
 
     if (InputManager.mouseDown() && this.selected && !this.dragging) {
       this.dragging = true;
-      this.dragOffset = vec.sub(InputManager.mousePosition, this.position);
+      this.dragOffset = vec.sub(mouseWorldPosition, this.position);
     }
 
     if (!InputManager.mouseDown()) {
@@ -168,17 +210,18 @@ export class Light {
     if (this.selected && this.dragging && this.dragOffset) {
       if (InputManager.keyDown('ControlLeft')) {
         this.radius = clamp(
-          vec.len(vec.sub(InputManager.mousePosition, this.position)),
+          vec.len(vec.sub(mouseWorldPosition, this.position)),
           Light.MIN_RADIUS,
           Light.MAX_RADIUS
         );
       } else {
-        this.position = vec.sub(InputManager.mousePosition, this.dragOffset);
+        this.position = vec.sub(mouseWorldPosition, this.dragOffset);
       }
     }
 
     Debug.border(`Light ${this.id} border`, '', this.position, {
       level: 1,
+      space: 'world',
       showLabel: false,
       showValue: false,
       borderShape: 'circle',
@@ -191,6 +234,7 @@ export class Light {
     });
     Debug.marker(`Light ${this.id}`, this.id, this.position, {
       level: 1,
+      space: 'world',
       showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       markerColour:
@@ -209,41 +253,20 @@ export class Light {
   ) {
     // If the light settings have changed, we need to redraw the base lightmap
     if (this.dirty) {
-      this.lightCanvas.width = this.lightCanvas.height = this._radius * 2;
-
-      this.lightContext.save();
-      this.lightContext.fillStyle = 'black';
-      this.lightContext.fillRect(
-        0,
-        0,
-        this.lightCanvas.width,
-        this.lightCanvas.height
-      );
-
-      const gradient = this.lightContext.createRadialGradient(
-        this._radius,
-        this._radius,
-        this._radius * this._intensity,
-        this._radius,
-        this._radius,
-        this._radius
-      );
-      gradient.addColorStop(0, colourToString(this.colourObject));
-      gradient.addColorStop(1, 'black');
-
-      this.lightContext.fillStyle = gradient;
-      this.lightContext.beginPath();
-      this.lightContext.arc(
-        this._radius,
-        this._radius,
-        this._radius,
-        0,
-        Math.PI * 2
-      );
-      this.lightContext.fill();
-
-      this.lightContext.restore();
+      this.prepareLightMap();
     }
+
+    // Bounding box for this light
+    const lightRectangle = {
+      position: vec.add(
+        vec.sub(this.position, vec(this._radius)),
+        vec(0, LightingSystem.WALL_LIGHTING_Y_OFFSET)
+      ),
+      size: vec.add(
+        vec(this._radius * 2),
+        vec(0, Math.abs(LightingSystem.WALL_LIGHTING_Y_OFFSET))
+      ),
+    };
 
     // Render light onto ground light canvas
     this.groundLightCanvas.width = this.groundLightCanvas.height =
@@ -252,29 +275,90 @@ export class Light {
     this.groundLightContext.drawImage(this.lightCanvas, 0, 0);
 
     // Subtract shadows from ground lightmap
+    let regionShadows: RegionShadow[] = [];
+    let spriteShadows: SpriteShadow[] = [];
+    if (this.castShadows) {
+      regionShadows = this.prepareGroundRegionShadows(
+        lightRectangle,
+        regionShadowCasters
+      );
+
+      spriteShadows = this.prepareGroundSpriteShadows(
+        lightRectangle,
+        spriteShadowCasters
+      );
+    }
+
+    // Render light onto wall light canvas
+    this.wallLightCanvas.width = this.wallLightCanvas.height = this._radius * 2;
+    this.wallLightContext.save();
+    this.wallLightContext.drawImage(this.lightCanvas, 0, 0);
+
+    // Subtract region shadows from wall lightmap
+    if (this.castShadows) {
+      this.prepareWallRegionShadows(
+        lightRectangle,
+        regionShadows,
+        regionShadowCasters,
+        wallShadowReceivers
+      );
+    } else {
+      this.prepareNonReceivingWallRegionShadows(
+        lightRectangle,
+        wallShadowReceivers
+      );
+    }
+  }
+
+  private prepareLightMap() {
+    this.lightCanvas.width = this.lightCanvas.height = this._radius * 2;
+
+    this.lightContext.save();
+    this.lightContext.fillStyle = 'black';
+    this.lightContext.fillRect(
+      0,
+      0,
+      this.lightCanvas.width,
+      this.lightCanvas.height
+    );
+
+    const gradient = this.lightContext.createRadialGradient(
+      this._radius,
+      this._radius,
+      this._radius * this._intensity,
+      this._radius,
+      this._radius,
+      this._radius
+    );
+    gradient.addColorStop(0, colourToString(this.colourObject));
+    gradient.addColorStop(1, 'black');
+
+    this.lightContext.fillStyle = gradient;
+    this.lightContext.beginPath();
+    this.lightContext.arc(
+      this._radius,
+      this._radius,
+      this._radius,
+      0,
+      Math.PI * 2
+    );
+    this.lightContext.fill();
+
+    this.lightContext.restore();
+  }
+
+  private prepareGroundRegionShadows(
+    lightRectangle: Rectangle,
+    regionShadowCasters: RegionShadowCaster[]
+  ): RegionShadow[] {
     this.groundLightContext.fillStyle = 'black';
     this.groundLightContext.translate(
       -this.position.x + this._radius,
       -this.position.y + this._radius
     );
 
-    // Bounding box for this light
-    const lightRectangle = {
-      position: vec.sub(this.position, vec(this._radius)),
-      size: vec(this._radius * 2),
-    };
-
     // Shadow metadata for each shadow
-    const shadows: {
-      // The entity that is casting this shadow
-      caster: ShadowCaster;
-
-      // The leftmost edge of the shadow (when pointing upwards)
-      leftEdge: Line | null;
-
-      // The rightmost edge of the shadow (when pointing upwards)
-      rightEdge: Line | null;
-    }[] = [];
+    const shadows: RegionShadow[] = [];
     for (const caster of regionShadowCasters) {
       const casterRectangle = {
         position: caster.position,
@@ -298,12 +382,61 @@ export class Light {
     }
     this.groundLightContext.restore();
 
-    // Render light onto wall light canvas
-    this.wallLightCanvas.width = this.wallLightCanvas.height = this._radius * 2;
-    this.wallLightContext.save();
-    this.wallLightContext.drawImage(this.lightCanvas, 0, 0);
+    return shadows;
+  }
 
-    // Subtract shadows from wall lightmap
+  private prepareGroundSpriteShadows(
+    lightRectangle: Rectangle,
+    spriteShadowCasters: SpriteShadowCaster[]
+  ): SpriteShadow[] {
+    this.groundLightContext.translate(
+      -this.position.x + this._radius,
+      -this.position.y + this._radius
+    );
+
+    // Shadow metadata for each shadow
+    const shadows: SpriteShadow[] = [];
+    for (const caster of spriteShadowCasters) {
+      const casterRectangle = {
+        position: caster.position,
+        size: caster.size,
+      };
+
+      // Check if this wall is in range of the light
+      if (rectanglesIntersect(lightRectangle, casterRectangle)) {
+        const shadowSprite = caster.sprite;
+        if (!shadowSprite) {
+          continue;
+        }
+
+        const shadowOrigin = anchorPosition(casterRectangle, caster.anchor);
+        const shadowEdge = vec.mul(vec.sub(caster.position, this.position), 1);
+        const shadowAngle = vec.rad(shadowEdge) + constants.HALF_PI;
+        const shadowLength = vec.len(shadowEdge);
+
+        this.groundLightContext.save();
+        this.groundLightContext.translate(0, 0); //-shadowOrigin.x, -shadowOrigin.y);
+        this.groundLightContext.rotate(shadowAngle);
+        this.groundLightContext.drawImage(
+          shadowSprite,
+          -caster.size.x / 2,
+          -shadowLength,
+          caster.size.x,
+          shadowLength
+        );
+        this.groundLightContext.restore();
+      }
+    }
+
+    return shadows;
+  }
+
+  private prepareWallRegionShadows(
+    lightRectangle: Rectangle,
+    regionShadows: RegionShadow[],
+    regionShadowCasters: RegionShadowCaster[],
+    wallShadowReceivers: WallShadowReceiver[]
+  ) {
     this.wallLightContext.fillStyle = 'black';
     this.wallLightContext.translate(
       -this.position.x + this._radius,
@@ -354,7 +487,7 @@ export class Light {
         }
 
         // Check each shadow to see if it fully or partially shadows this wall
-        for (const shadow of shadows) {
+        for (const shadow of regionShadows) {
           const shadowCasterRectangle = {
             position: shadow.caster.position,
             size: shadow.caster.size,
@@ -516,14 +649,35 @@ export class Light {
     this.wallLightContext.restore();
   }
 
-  private lineIsFacing(line: Line): boolean {
-    const edge = vec.nor(vec.sub(line.end, line.start));
-    const edgeNormal = vec(edge.y, -edge.x);
-    const lightNormal = vec.nor(
-      vec.sub(vec.mul(vec.add(line.start, line.end), 0.5), this.position)
+  private prepareNonReceivingWallRegionShadows(
+    lightRectangle: Rectangle,
+    wallShadowReceivers: WallShadowReceiver[]
+  ) {
+    this.wallLightContext.fillStyle = 'black';
+    this.wallLightContext.translate(
+      -this.position.x + this._radius,
+      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
 
-    return vec.dot(lightNormal, edgeNormal) <= 0;
+    for (const wall of wallShadowReceivers) {
+      const wallRectangle = {
+        position: wall.position,
+        size: wall.size,
+      };
+
+      // Check if this wall shadow receiver is in range of the light
+      if (rectanglesIntersect(lightRectangle, wallRectangle)) {
+        // If the wall doesn't receive light, it is in full shadow
+        if (!wall.receiveLight) {
+          this.wallLightContext.fillRect(
+            wallRectangle.position.x,
+            wallRectangle.position.y,
+            wallRectangle.size.x,
+            wallRectangle.size.y
+          );
+        }
+      }
+    }
   }
 
   private prepareRegionShadow(shadowCasterRectangle: Rectangle): {
@@ -763,4 +917,18 @@ export class Light {
       vertices: shadowPolygon,
     };
   }
+
+  private lineIsFacing(line: Line): boolean {
+    const edge = vec.nor(vec.sub(line.end, line.start));
+    const edgeNormal = vec(edge.y, -edge.x);
+    const lightNormal = vec.nor(
+      vec.sub(vec.mul(vec.add(line.start, line.end), 0.5), this.position)
+    );
+
+    return vec.dot(lightNormal, edgeNormal) <= 0;
+  }
+
+  // private prepareSpriteShadow(shadowCasterRectangle: Rectangle): {
+  //
+  // }
 }

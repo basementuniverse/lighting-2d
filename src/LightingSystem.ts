@@ -1,9 +1,11 @@
+import Camera from '@basementuniverse/camera';
 import { pluck } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { CircleShadowCaster } from './CircleShadowCaster';
 import Game from './Game';
 import { GroundShadowReceiver } from './GroundShadowReceiver';
 import { Light } from './Light';
+import { LightingScene } from './LightingScene';
 import { RegionShadowCaster } from './RegionShadowCaster';
 import { SpriteShadowCaster } from './SpriteShadowCaster';
 import { Side } from './types';
@@ -65,6 +67,7 @@ export class LightingSystem {
   }
 
   public prepare(
+    camera: Camera,
     groundShadowReceivers: GroundShadowReceiver[],
     wallShadowReceivers: WallShadowReceiver[],
     regionShadowCasters: RegionShadowCaster[],
@@ -85,6 +88,7 @@ export class LightingSystem {
     this.groundMaskCanvas.width = Game.screen.x;
     this.groundMaskCanvas.height = Game.screen.y;
     this.groundMaskContext.save();
+    camera.setTransforms(this.groundMaskContext);
 
     groundShadowReceivers.forEach(ground => {
       ground.drawMask(this.groundMaskContext);
@@ -102,6 +106,7 @@ export class LightingSystem {
     this.wallMaskCanvas.width = Game.screen.x;
     this.wallMaskCanvas.height = Game.screen.y;
     this.wallMaskContext.save();
+    camera.setTransforms(this.wallMaskContext);
 
     wallShadowReceivers.forEach(wall => {
       wall.drawMask(this.wallMaskContext);
@@ -109,17 +114,18 @@ export class LightingSystem {
 
     this.wallMaskContext.restore();
 
-    // Prepare ground-mask lightmap canvas
+    // Prepare ground-masked lightmap canvas
     this.groundMaskedLightMapCanvas.width = Game.screen.x;
     this.groundMaskedLightMapCanvas.height = Game.screen.y;
     this.groundMaskedLightMapContext.save();
+    camera.setTransforms(this.groundMaskedLightMapContext);
 
     this.groundMaskedLightMapContext.fillStyle = this.ambientLightColour;
     this.groundMaskedLightMapContext.fillRect(
-      0,
-      0,
-      Game.screen.x,
-      Game.screen.y
+      camera.bounds.left,
+      camera.bounds.top,
+      camera.bounds.right - camera.bounds.left,
+      camera.bounds.bottom - camera.bounds.top
     );
 
     // Draw lights
@@ -133,17 +139,27 @@ export class LightingSystem {
     });
 
     // Mask ground
+    this.groundMaskedLightMapContext.save();
+    this.groundMaskedLightMapContext.setTransform(1, 0, 0, 1, 0, 0);
     this.groundMaskedLightMapContext.globalCompositeOperation =
       'destination-atop';
     this.groundMaskedLightMapContext.drawImage(this.groundMaskCanvas, 0, 0);
+    this.groundMaskedLightMapContext.restore();
+    this.groundMaskedLightMapContext.restore();
 
-    // Prepare wall-mask lightmap canvas
+    // Prepare wall-masked lightmap canvas
     this.wallMaskedLightMapCanvas.width = Game.screen.x;
     this.wallMaskedLightMapCanvas.height = Game.screen.y;
     this.wallMaskedLightMapContext.save();
+    camera.setTransforms(this.wallMaskedLightMapContext);
 
     this.wallMaskedLightMapContext.fillStyle = this.ambientLightColour;
-    this.wallMaskedLightMapContext.fillRect(0, 0, Game.screen.x, Game.screen.y);
+    this.wallMaskedLightMapContext.fillRect(
+      camera.bounds.left,
+      camera.bounds.top,
+      camera.bounds.right - camera.bounds.left,
+      camera.bounds.bottom - camera.bounds.top
+    );
 
     // Draw lights
     this.wallMaskedLightMapContext.globalCompositeOperation = 'screen';
@@ -156,9 +172,13 @@ export class LightingSystem {
     });
 
     // Mask wall
+    this.wallMaskedLightMapContext.save();
+    this.wallMaskedLightMapContext.setTransform(1, 0, 0, 1, 0, 0);
     this.wallMaskedLightMapContext.globalCompositeOperation =
       'destination-atop';
     this.wallMaskedLightMapContext.drawImage(this.wallMaskCanvas, 0, 0);
+    this.wallMaskedLightMapContext.restore();
+    this.wallMaskedLightMapContext.restore();
   }
 
   public draw(context: CanvasRenderingContext2D) {
@@ -172,6 +192,7 @@ export class LightingSystem {
   }
 
   public static mergeRegionShadowCasters(
+    scene: LightingScene,
     casters: RegionShadowCaster[]
   ): RegionShadowCaster[] {
     let result = [...casters].sort((a, b) => {
@@ -208,7 +229,7 @@ export class LightingSystem {
         }
 
         result = result.filter(caster => ![a.id, b.id].includes(caster.id));
-        result.push(a.merge(b));
+        result.push(a.merge(scene, b));
         a.destroy();
         b.destroy();
       }
@@ -218,6 +239,7 @@ export class LightingSystem {
   }
 
   public static mergeWallShadowReceivers(
+    scene: LightingScene,
     receivers: WallShadowReceiver[]
   ): WallShadowReceiver[] {
     let result = [...receivers].sort((a, b) => {
@@ -257,7 +279,7 @@ export class LightingSystem {
         }
 
         result = result.filter(receiver => ![a.id, b.id].includes(receiver.id));
-        result.push(a.merge(b));
+        result.push(a.merge(scene, b));
         a.destroy();
         b.destroy();
       }
