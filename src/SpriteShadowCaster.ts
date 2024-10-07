@@ -23,7 +23,8 @@ export class SpriteShadowCaster implements ShadowCaster {
 
   public position: vec = vec();
   public size: vec = SpriteShadowCaster.DEFAULT_SIZE;
-  public spriteName: string = '';
+  public spriteName: string = 'test-shadow';
+  public tempSpriteName: string = 'test-sprite';
   public anchor: AnchorPosition = AnchorPosition.Centre;
 
   public hovered = false;
@@ -61,6 +62,7 @@ export class SpriteShadowCaster implements ShadowCaster {
       )
       .name('height');
     this.folder.add(this, 'spriteName');
+    this.folder.add(this, 'tempSpriteName');
     this.folder.add(this, 'anchor', Object.values(AnchorPosition));
   }
 
@@ -75,6 +77,7 @@ export class SpriteShadowCaster implements ShadowCaster {
       position: this.position,
       size: this.size,
       spriteName: this.spriteName,
+      anchor: this.anchor,
     };
   }
 

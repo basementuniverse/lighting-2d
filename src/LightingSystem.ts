@@ -38,6 +38,9 @@ export class LightingSystem {
   public groundMaskedLightMapCanvas: HTMLCanvasElement;
   private groundMaskedLightMapContext: CanvasRenderingContext2D;
 
+  /**
+   * Initialise lighting system canvases
+   */
   public initialise() {
     this.groundMaskCanvas = document.createElement('canvas');
     this.groundMaskCanvas.width = Game.screen.x;
@@ -62,10 +65,16 @@ export class LightingSystem {
       this.groundMaskedLightMapCanvas.getContext('2d')!;
   }
 
+  /**
+   * Update the lighting system's lights
+   */
   public update(dt: number) {
     this.lights.forEach(light => light.update(dt));
   }
 
+  /**
+   * Prepare the lightmaps for rendering
+   */
   public prepare(
     camera: Camera,
     groundShadowReceivers: GroundShadowReceiver[],
@@ -171,6 +180,8 @@ export class LightingSystem {
       );
     });
 
+    this.prepareNonLightReceivingWallShadows(wallShadowReceivers);
+
     // Mask wall
     this.wallMaskedLightMapContext.save();
     this.wallMaskedLightMapContext.setTransform(1, 0, 0, 1, 0, 0);
@@ -181,6 +192,38 @@ export class LightingSystem {
     this.wallMaskedLightMapContext.restore();
   }
 
+  /**
+   * Prepare full shadows for non-light-receiving walls
+   */
+  private prepareNonLightReceivingWallShadows(
+    wallShadowReceivers: WallShadowReceiver[]
+  ) {
+    this.wallMaskedLightMapContext.save();
+    this.wallMaskedLightMapContext.globalCompositeOperation = 'source-over';
+    this.wallMaskedLightMapContext.fillStyle = this.ambientLightColour;
+
+    for (const wall of wallShadowReceivers) {
+      const wallRectangle = {
+        position: wall.position,
+        size: wall.size,
+      };
+
+      if (!wall.receiveLight) {
+        this.wallMaskedLightMapContext.fillRect(
+          wallRectangle.position.x,
+          wallRectangle.position.y,
+          wallRectangle.size.x,
+          wallRectangle.size.y
+        );
+      }
+    }
+
+    this.wallMaskedLightMapContext.restore();
+  }
+
+  /**
+   * Draw the lightmaps to the context
+   */
   public draw(context: CanvasRenderingContext2D) {
     context.save();
 
@@ -191,6 +234,9 @@ export class LightingSystem {
     context.restore();
   }
 
+  /**
+   * Optimise region shadow casters by merging adjacent casters
+   */
   public static mergeRegionShadowCasters(
     scene: LightingScene,
     casters: RegionShadowCaster[]
@@ -238,6 +284,9 @@ export class LightingSystem {
     return result;
   }
 
+  /**
+   * Optimise wall shadow receivers by merging adjacent receivers
+   */
   public static mergeWallShadowReceivers(
     scene: LightingScene,
     receivers: WallShadowReceiver[]
@@ -288,6 +337,9 @@ export class LightingSystem {
     return result;
   }
 
+  /**
+   * Find pairs of items that are adjacent to each other and can be merged
+   */
   private static findMerges<T extends { position: vec; size: vec }>(
     items: T[],
     extraComparison?: (a: T, b: T) => boolean

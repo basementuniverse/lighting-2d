@@ -100,6 +100,12 @@ export class LightingScene {
       .name('Optimise');
     Game.gui.add(this.lightingSystem, 'ambientLightColour').listen();
 
+    const testSpriteImage = new Image();
+    testSpriteImage.src = '../images/test-sprite.png';
+    testSpriteImage.onload = () => {
+      LightingScene.SPRITES['test-sprite'] = testSpriteImage;
+    };
+
     const testShadowImage = new Image();
     testShadowImage.src = '../images/test-shadow.png';
     testShadowImage.onload = () => {
@@ -232,11 +238,13 @@ export class LightingScene {
     );
 
     // Handle camera zoom
-    if (InputManager.mouseWheelUp()) {
-      this.camera.scale += 0.1;
-    }
-    if (InputManager.mouseWheelDown()) {
-      this.camera.scale -= 0.1;
+    if (InputManager.keyDown('ShiftLeft')) {
+      if (InputManager.mouseWheelUp()) {
+        this.camera.scale += 0.1;
+      }
+      if (InputManager.mouseWheelDown()) {
+        this.camera.scale -= 0.1;
+      }
     }
     this.camera.update(Game.screen);
 

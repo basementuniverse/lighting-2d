@@ -24,6 +24,7 @@ import {
 import {
   anchorPosition,
   colourToString,
+  lineIsFacing,
   lineYIntercept,
   overlap1d,
   polygon,
@@ -34,7 +35,7 @@ import {
 } from './utils';
 import { WallShadowReceiver } from './WallShadowReceiver';
 
-type RegionShadow = {
+type Shadow = {
   /**
    * The entity that is casting this shadow
    */
@@ -51,17 +52,28 @@ type RegionShadow = {
   rightEdge: Line | null;
 };
 
-type SpriteShadow = {
+type SpriteWallShadowIntercept = {
   /**
-   * The entity that is casting this shadow
+   * The shadow that this intercept belongs to
    */
-  caster: ShadowCaster;
+  shadow: Exclude<Shadow, 'caster'> & {
+    caster: SpriteShadowCaster;
+  };
 
   /**
-   * A line segment representing the start and end of the sprite shadow, and
-   * the angle of the sprite
+   * Is this the left or right edge of the shadow
    */
-  edge: Line | null;
+  type: 'left' | 'right';
+
+  /**
+   * The position of this intercept
+   */
+  position: vec;
+
+  /**
+   * The normalised progress along the shadow's edge
+   */
+  t: number;
 };
 
 export class Light {
@@ -75,6 +87,7 @@ export class Light {
   private static readonly MAX_RADIUS = 400;
   private static readonly SHADOW_BUFFER = 20;
   private static readonly WALL_LIGHT_CUTOFF_DISTANCE = 20;
+  private static readonly WALL_LIGHT_LENGTH_COEFFICIENT = 0.75;
 
   public readonly type = 'Light';
 
@@ -271,12 +284,11 @@ export class Light {
     // Render light onto ground light canvas
     this.groundLightCanvas.width = this.groundLightCanvas.height =
       this._radius * 2;
-    this.groundLightContext.save();
     this.groundLightContext.drawImage(this.lightCanvas, 0, 0);
 
     // Subtract shadows from ground lightmap
-    let regionShadows: RegionShadow[] = [];
-    let spriteShadows: SpriteShadow[] = [];
+    let regionShadows: Shadow[] = [];
+    let spriteShadows: Shadow[] = [];
     if (this.castShadows) {
       regionShadows = this.prepareGroundRegionShadows(
         lightRectangle,
@@ -291,8 +303,11 @@ export class Light {
 
     // Render light onto wall light canvas
     this.wallLightCanvas.width = this.wallLightCanvas.height = this._radius * 2;
-    this.wallLightContext.save();
     this.wallLightContext.drawImage(this.lightCanvas, 0, 0);
+
+    // Prepare full-wall shading based on whether the wall is above or below
+    // the light position
+    this.prepareInitialShading(lightRectangle, wallShadowReceivers);
 
     // Subtract region shadows from wall lightmap
     if (this.castShadows) {
@@ -302,9 +317,10 @@ export class Light {
         regionShadowCasters,
         wallShadowReceivers
       );
-    } else {
-      this.prepareNonReceivingWallRegionShadows(
+
+      this.prepareWallSpriteShadows(
         lightRectangle,
+        spriteShadows,
         wallShadowReceivers
       );
     }
@@ -347,10 +363,64 @@ export class Light {
     this.lightContext.restore();
   }
 
+  private prepareInitialShading(
+    lightRectangle: Rectangle,
+    wallShadowReceivers: WallShadowReceiver[]
+  ) {
+    this.wallLightContext.save();
+    this.wallLightContext.fillStyle = 'black';
+    this.wallLightContext.translate(
+      -this.position.x + this._radius,
+      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+    );
+
+    for (const wall of wallShadowReceivers) {
+      const wallRectangle = {
+        position: wall.position,
+        size: wall.size,
+      };
+      const wallInterval = rectangleToInterval(wallRectangle);
+
+      // Check if this wall shadow receiver is in range of the light
+      if (rectanglesIntersect(lightRectangle, wallRectangle)) {
+        // If the wall doesn't receive light, it also doesn't receive
+        // partial or full shadows
+        if (!wall.receiveLight) {
+          continue;
+        }
+
+        // The wall is only lit by this light if it's above the light
+        if (this.position.y < wallInterval.bottom) {
+          this.wallLightContext.save();
+          this.wallLightContext.globalAlpha = clamp(
+            remap(
+              wallInterval.bottom - this.position.y,
+              0,
+              Light.WALL_LIGHT_CUTOFF_DISTANCE,
+              0,
+              1
+            ),
+            0,
+            1
+          );
+          this.wallLightContext.fillRect(
+            wallRectangle.position.x,
+            wallRectangle.position.y,
+            wallRectangle.size.x,
+            wallRectangle.size.y
+          );
+          this.wallLightContext.restore();
+        }
+      }
+    }
+    this.wallLightContext.restore();
+  }
+
   private prepareGroundRegionShadows(
     lightRectangle: Rectangle,
     regionShadowCasters: RegionShadowCaster[]
-  ): RegionShadow[] {
+  ): Shadow[] {
+    this.groundLightContext.save();
     this.groundLightContext.fillStyle = 'black';
     this.groundLightContext.translate(
       -this.position.x + this._radius,
@@ -358,7 +428,7 @@ export class Light {
     );
 
     // Shadow metadata for each shadow
-    const shadows: RegionShadow[] = [];
+    const shadows: Shadow[] = [];
     for (const caster of regionShadowCasters) {
       const casterRectangle = {
         position: caster.position,
@@ -388,14 +458,12 @@ export class Light {
   private prepareGroundSpriteShadows(
     lightRectangle: Rectangle,
     spriteShadowCasters: SpriteShadowCaster[]
-  ): SpriteShadow[] {
-    this.groundLightContext.translate(
-      -this.position.x + this._radius,
-      -this.position.y + this._radius
-    );
+  ): Shadow[] {
+    this.groundLightContext.save();
+    this.groundLightContext.translate(this._radius, this._radius);
 
     // Shadow metadata for each shadow
-    const shadows: SpriteShadow[] = [];
+    const shadows: Shadow[] = [];
     for (const caster of spriteShadowCasters) {
       const casterRectangle = {
         position: caster.position,
@@ -405,17 +473,24 @@ export class Light {
       // Check if this wall is in range of the light
       if (rectanglesIntersect(lightRectangle, casterRectangle)) {
         const shadowSprite = caster.sprite;
+
+        // If the shadow sprite is missing for this caster then it doesn't
+        // cast a shadow
         if (!shadowSprite) {
           continue;
         }
 
+        // Render the ground shadow sprite onto the lightmap
         const shadowOrigin = anchorPosition(casterRectangle, caster.anchor);
-        const shadowEdge = vec.mul(vec.sub(caster.position, this.position), 1);
+        const shadowEdge = vec.mul(vec.sub(shadowOrigin, this.position), 1);
         const shadowAngle = vec.rad(shadowEdge) + constants.HALF_PI;
         const shadowLength = vec.len(shadowEdge);
 
         this.groundLightContext.save();
-        this.groundLightContext.translate(0, 0); //-shadowOrigin.x, -shadowOrigin.y);
+        this.groundLightContext.translate(
+          shadowOrigin.x - this.position.x,
+          shadowOrigin.y - this.position.y
+        );
         this.groundLightContext.rotate(shadowAngle);
         this.groundLightContext.drawImage(
           shadowSprite,
@@ -425,18 +500,34 @@ export class Light {
           shadowLength
         );
         this.groundLightContext.restore();
+
+        // Save shadow metadata for use later when rendering wall shadows
+        const corner = vec.rot(vec(caster.size.x / 2, 0), shadowAngle);
+        shadows.push({
+          caster,
+          leftEdge: {
+            start: vec.sub(shadowOrigin, corner),
+            end: vec.sub(vec.add(shadowOrigin, shadowEdge), corner),
+          },
+          rightEdge: {
+            start: vec.add(shadowOrigin, corner),
+            end: vec.add(vec.add(shadowOrigin, shadowEdge), corner),
+          },
+        });
       }
     }
+    this.groundLightContext.restore();
 
     return shadows;
   }
 
   private prepareWallRegionShadows(
     lightRectangle: Rectangle,
-    regionShadows: RegionShadow[],
+    regionShadows: Shadow[],
     regionShadowCasters: RegionShadowCaster[],
     wallShadowReceivers: WallShadowReceiver[]
   ) {
+    this.wallLightContext.save();
     this.wallLightContext.fillStyle = 'black';
     this.wallLightContext.translate(
       -this.position.x + this._radius,
@@ -452,38 +543,10 @@ export class Light {
 
       // Check if this wall shadow receiver is in range of the light
       if (rectanglesIntersect(lightRectangle, wallRectangle)) {
-        // If the wall doesn't receive light, it is in full shadow
+        // If the wall doesn't receive light, it also doesn't receive
+        // partial or full shadows
         if (!wall.receiveLight) {
-          this.wallLightContext.fillRect(
-            wallRectangle.position.x,
-            wallRectangle.position.y,
-            wallRectangle.size.x,
-            wallRectangle.size.y
-          );
           continue;
-        }
-
-        // The wall is only lit by this light if it's above the light
-        if (this.position.y < wallInterval.bottom) {
-          this.wallLightContext.save();
-          this.wallLightContext.globalAlpha = clamp(
-            remap(
-              wallInterval.bottom - this.position.y,
-              0,
-              Light.WALL_LIGHT_CUTOFF_DISTANCE,
-              0,
-              1
-            ),
-            0,
-            1
-          );
-          this.wallLightContext.fillRect(
-            wallRectangle.position.x,
-            wallRectangle.position.y,
-            wallRectangle.size.x,
-            wallRectangle.size.y
-          );
-          this.wallLightContext.restore();
         }
 
         // Check each shadow to see if it fully or partially shadows this wall
@@ -589,10 +652,13 @@ export class Light {
 
           let leftIntercept: number | null = null;
           if (shadow.leftEdge) {
-            leftIntercept = lineYIntercept(
+            const leftInterceptResult = lineYIntercept(
               shadow.leftEdge,
               wallInterval.bottom
             );
+            if (leftInterceptResult) {
+              [leftIntercept] = leftInterceptResult;
+            }
 
             if (shadow.leftEdge.start.y < shadow.leftEdge.end.y) {
               leftIntercept = wallInterval.left;
@@ -601,10 +667,13 @@ export class Light {
 
           let rightIntercept: number | null = null;
           if (shadow.rightEdge) {
-            rightIntercept = lineYIntercept(
+            const rightInterceptResult = lineYIntercept(
               shadow.rightEdge,
               wallInterval.bottom
             );
+            if (rightInterceptResult) {
+              [rightIntercept] = rightInterceptResult;
+            }
 
             if (shadow.rightEdge.start.y < shadow.rightEdge.end.y) {
               rightIntercept = wallInterval.right;
@@ -649,35 +718,225 @@ export class Light {
     this.wallLightContext.restore();
   }
 
-  private prepareNonReceivingWallRegionShadows(
+  private prepareWallSpriteShadows(
     lightRectangle: Rectangle,
+    spriteShadows: Shadow[],
     wallShadowReceivers: WallShadowReceiver[]
   ) {
-    this.wallLightContext.fillStyle = 'black';
+    this.wallLightContext.save();
     this.wallLightContext.translate(
       -this.position.x + this._radius,
       -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
 
+    const intercepts: SpriteWallShadowIntercept[] = [];
     for (const wall of wallShadowReceivers) {
       const wallRectangle = {
         position: wall.position,
         size: wall.size,
       };
+      const wallInterval = rectangleToInterval(wallRectangle);
 
       // Check if this wall shadow receiver is in range of the light
       if (rectanglesIntersect(lightRectangle, wallRectangle)) {
-        // If the wall doesn't receive light, it is in full shadow
+        // If the wall doesn't receive light, it also doesn't receive
+        // partial or full shadows
         if (!wall.receiveLight) {
-          this.wallLightContext.fillRect(
-            wallRectangle.position.x,
-            wallRectangle.position.y,
-            wallRectangle.size.x,
-            wallRectangle.size.y
+          continue;
+        }
+
+        // Check each shadow to see if it occludes this wall
+        for (const shadow of spriteShadows) {
+          let leftIntercept: [number, number] | null = null;
+          if (
+            shadow.leftEdge &&
+            shadow.leftEdge.start.y > shadow.leftEdge.end.y
+          ) {
+            leftIntercept = lineYIntercept(
+              shadow.leftEdge,
+              wallInterval.bottom,
+              false
+            );
+          }
+
+          let rightIntercept: [number, number] | null = null;
+          if (
+            shadow.rightEdge &&
+            shadow.rightEdge.start.y > shadow.rightEdge.end.y
+          ) {
+            rightIntercept = lineYIntercept(
+              shadow.rightEdge,
+              wallInterval.bottom,
+              false
+            );
+          }
+
+          // If only the top-right corner of the sprite shadow rectangle
+          // intercepted the wall, then we'll need to find where the top-left
+          // corner *would have* intercepted (allowAfter = true)
+          if (
+            shadow.rightEdge &&
+            leftIntercept !== null &&
+            rightIntercept === null
+          ) {
+            rightIntercept = lineYIntercept(
+              shadow.rightEdge,
+              wallInterval.bottom
+            );
+          }
+
+          // Likewise, if only the top-left corner of the sprite shadow
+          // rectangle intercepted the wall, then we'll need to find where the
+          // top-left corner *would have* intercepted (allowAfter = true)
+          if (
+            shadow.leftEdge &&
+            leftIntercept === null &&
+            rightIntercept !== null
+          ) {
+            leftIntercept = lineYIntercept(
+              shadow.leftEdge,
+              wallInterval.bottom
+            );
+          }
+
+          // Don't render a shadow if either intercept is missing (this can
+          // happen if both shadow edges are pointing down)
+          if (leftIntercept === null || rightIntercept === null) {
+            continue;
+          }
+
+          // Don't render a shadow if the intercepts are the wrong way 'round
+          // or the gap between them is 0
+          // (not sure if this is possible, but just making sure)
+          if (leftIntercept >= rightIntercept!) {
+            continue;
+          }
+
+          // Don't render the shadow if it's outside the wall boundaries
+          if (
+            leftIntercept[0] > wallInterval.right ||
+            rightIntercept[0] < wallInterval.left
+          ) {
+            continue;
+          }
+
+          intercepts.push(
+            {
+              shadow: {
+                ...shadow,
+                caster: shadow.caster as SpriteShadowCaster,
+              },
+              type: 'left',
+              position: vec(leftIntercept[0], wallInterval.bottom),
+              t: leftIntercept[1],
+            },
+            {
+              shadow: {
+                ...shadow,
+                caster: shadow.caster as SpriteShadowCaster,
+              },
+              type: 'right',
+              position: vec(rightIntercept[0], wallInterval.bottom),
+              t: rightIntercept[1],
+            }
           );
+
+          // Debug.marker(
+          //   `LI ${this.id} ${shadow.caster.id} ${wall.id}`,
+          //   '',
+          //   vec(leftIntercept[0], wallInterval.bottom),
+          //   {
+          //     level: 2,
+          //     space: 'world',
+          //     showLabel: true,
+          //     showValue: false,
+          //     markerColour: 'red',
+          //   }
+          // );
+
+          // Debug.marker(
+          //   `RI ${this.id} ${shadow.caster.id} ${wall.id}`,
+          //   '',
+          //   vec(rightIntercept[0], wallInterval.bottom),
+          //   {
+          //     level: 2,
+          //     space: 'world',
+          //     showLabel: true,
+          //     showValue: false,
+          //     markerColour: 'green',
+          //   }
+          // );
         }
       }
     }
+
+    // Remove duplicate intercepts
+    const uniqueIntercepts = Object.values(
+      intercepts.reduce(
+        (map, intercept) => ({
+          ...map,
+          [`${vec.str(intercept.position)}-${intercept.shadow.caster.id}`]:
+            intercept,
+        }),
+        {} as Record<string, SpriteWallShadowIntercept>
+      )
+    );
+
+    // Group intercepts into left/right pairs
+    const groupedIntercepts = Object.values(
+      uniqueIntercepts.reduce(
+        (map, intercept) =>
+          ((key: string) => ({
+            ...map,
+            [key]: [...(map[key] ?? []), intercept],
+          }))(`${intercept.position.y}-${intercept.shadow.caster.id}`),
+        {} as Record<string, SpriteWallShadowIntercept[]>
+      )
+    );
+
+    // Draw a shadow for each group
+    for (const group of groupedIntercepts) {
+      const shadowSprite = group[0].shadow.caster.sprite;
+
+      // If the shadow sprite is missing for this caster then it doesn't
+      // cast a shadow
+      if (!shadowSprite) {
+        continue;
+      }
+
+      const t = (group[0].t + group[1].t) / 2;
+      const l =
+        (vec.len(
+          vec.sub(
+            group[0].shadow.leftEdge!.start,
+            group[0].shadow.leftEdge!.end
+          )
+        ) +
+          vec.len(
+            vec.sub(
+              group[0].shadow.rightEdge!.start,
+              group[0].shadow.rightEdge!.end
+            )
+          )) /
+        2;
+      const sourceHeight = shadowSprite.height * (1 - t);
+      const destinationHeight =
+        l * (1 - t) * Light.WALL_LIGHT_LENGTH_COEFFICIENT;
+
+      this.wallLightContext.drawImage(
+        shadowSprite,
+        0,
+        0,
+        shadowSprite.width,
+        sourceHeight,
+        group[0].position.x,
+        group[0].position.y - destinationHeight,
+        group[1].position.x - group[0].position.x,
+        destinationHeight
+      );
+    }
+
+    this.wallLightContext.restore();
   }
 
   private prepareRegionShadow(shadowCasterRectangle: Rectangle): {
@@ -696,7 +955,7 @@ export class Light {
       const previous = at(shadowCasterVertices, i - 1);
       const current = shadowCasterVertices[i];
 
-      if (!this.lineIsFacing({ start: previous, end: current })) {
+      if (!lineIsFacing({ start: previous, end: current }, this.position)) {
         const vertex1 = vec.sub(previous, lightPosition);
         const vertex2 = vec.sub(current, lightPosition);
         shadowEdges.push(
@@ -917,18 +1176,4 @@ export class Light {
       vertices: shadowPolygon,
     };
   }
-
-  private lineIsFacing(line: Line): boolean {
-    const edge = vec.nor(vec.sub(line.end, line.start));
-    const edgeNormal = vec(edge.y, -edge.x);
-    const lightNormal = vec.nor(
-      vec.sub(vec.mul(vec.add(line.start, line.end), 0.5), this.position)
-    );
-
-    return vec.dot(lightNormal, edgeNormal) <= 0;
-  }
-
-  // private prepareSpriteShadow(shadowCasterRectangle: Rectangle): {
-  //
-  // }
 }

@@ -148,13 +148,16 @@ export function lineInRectangle(line: Line, rectangle: Rectangle): vec | null {
 
 /**
  * Calculate the x position of a line where it intercepts a given y
+ *
+ * Returns a tuple containing the intercept position and the normalised
+ * progress along the line
  */
 export function lineYIntercept(
   line: Line,
   y: number,
   allowBefore: boolean = true,
   allowAfter: boolean = true
-): number | null {
+): [number, number] | null {
   if (floatEquals(line.start.y, line.end.y)) {
     return null;
   }
@@ -167,7 +170,20 @@ export function lineYIntercept(
     return null;
   }
 
-  return line.start.x + t * (line.end.x - line.start.x);
+  return [line.start.x + t * (line.end.x - line.start.x), t];
+}
+
+/**
+ * Check if a line segment's normal is facing towards a point
+ */
+export function lineIsFacing(line: Line, position: vec) {
+  const edge = vec.nor(vec.sub(line.end, line.start));
+  const edgeNormal = vec(edge.y, -edge.x);
+  const lightNormal = vec.nor(
+    vec.sub(vec.mul(vec.add(line.start, line.end), 0.5), position)
+  );
+
+  return vec.dot(lightNormal, edgeNormal) <= 0;
 }
 
 /**
