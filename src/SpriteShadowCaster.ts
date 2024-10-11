@@ -12,6 +12,8 @@ export class SpriteShadowCaster implements ShadowCaster {
   private static readonly DEFAULT_SHADOW_NAME = 'character-shadow';
   private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
   private static readonly DEFAULT_OFFSET = vec(0.5, 0.9);
+  private static readonly DEFAULT_MIN_SHADOW_LENGTH = 64;
+  private static readonly DEFAULT_MAX_SHADOW_LENGTH = 64;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -28,6 +30,8 @@ export class SpriteShadowCaster implements ShadowCaster {
   public shadowName: string = SpriteShadowCaster.DEFAULT_SHADOW_NAME;
   public anchor: vec = SpriteShadowCaster.DEFAULT_ANCHOR;
   public offset: vec = SpriteShadowCaster.DEFAULT_OFFSET;
+  public minShadowLength: number = SpriteShadowCaster.DEFAULT_MIN_SHADOW_LENGTH;
+  public maxShadowLength: number = SpriteShadowCaster.DEFAULT_MAX_SHADOW_LENGTH;
 
   public hovered = false;
   public selected = false;
@@ -68,6 +72,8 @@ export class SpriteShadowCaster implements ShadowCaster {
     this.folder.add(this.anchor, 'y').name('anchor y');
     this.folder.add(this.offset, 'x').name('offset x');
     this.folder.add(this.offset, 'y').name('offset y');
+    this.folder.add(this, 'minShadowLength');
+    this.folder.add(this, 'maxShadowLength');
   }
 
   public get shadow(): HTMLImageElement | null {
@@ -83,6 +89,8 @@ export class SpriteShadowCaster implements ShadowCaster {
       shadowName: this.shadowName,
       anchor: this.anchor,
       offset: this.offset,
+      minShadowLength: this.minShadowLength,
+      maxShadowLength: this.maxShadowLength,
     };
   }
 

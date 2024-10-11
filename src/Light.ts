@@ -85,8 +85,6 @@ export class Light {
   private static readonly SHADOW_BUFFER = 20;
   private static readonly WALL_LIGHT_CUTOFF_DISTANCE = 20;
   private static readonly SPRITE_WALL_SHADOW_LENGTH_COEFFICIENT = 0.75;
-  private static readonly SPRITE_SHADOW_MIN_LENGTH_COEFFICIENT = 0.75;
-  private static readonly SPRITE_SHADOW_MAX_LENGTH_COEFFICIENT = 4;
   private static readonly SPRITE_SHADOW_INTERCEPT_OFFSET = 0.1;
   private static readonly CIRCLE_WALL_SHADOW_HEIGHT_COEFFICIENT = 0.5;
 
@@ -499,8 +497,8 @@ export class Light {
           vec(caster.size.x * caster.anchor.x, caster.size.y * caster.anchor.y)
         );
         const shadowLength = smoothstep(
-          caster.size.y * Light.SPRITE_SHADOW_MIN_LENGTH_COEFFICIENT,
-          caster.size.y * Light.SPRITE_SHADOW_MAX_LENGTH_COEFFICIENT,
+          caster.minShadowLength,
+          caster.maxShadowLength,
           unlerp(0, this.radius, vec.len(vec.sub(shadowOrigin, this.position)))
         );
         const shadowEdge = vec.mul(
