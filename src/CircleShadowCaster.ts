@@ -8,11 +8,15 @@ import ShadowCaster from './ShadowCaster';
 import { clampVec, pointInRectangle, quantizeVec } from './utils';
 
 export class CircleShadowCaster implements ShadowCaster {
-  private static readonly DEFAULT_SIZE = vec(100, 100);
-  private static readonly DEBUG_COLOUR = '#b05';
-  private static readonly DEBUG_HOVER_COLOUR = '#d27';
-  private static readonly MIN_SIZE = vec(20, 20);
-  private static readonly MAX_SIZE = vec(200, 200);
+  private static readonly DEFAULT_SIZE = vec(64, 64);
+  private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
+  private static readonly DEFAULT_MIN_DISTANCE = 5;
+  private static readonly DEFAULT_MAX_DISTANCE = 20;
+  private static readonly DEFAULT_ALPHA = 1;
+  private static readonly DEBUG_COLOUR = '#c33';
+  private static readonly DEBUG_HOVER_COLOUR = '#f44';
+  private static readonly MIN_SIZE = vec(16, 16);
+  private static readonly MAX_SIZE = vec(256, 256);
 
   public readonly type = 'CircleShadowCaster';
 
@@ -22,6 +26,10 @@ export class CircleShadowCaster implements ShadowCaster {
 
   public position: vec = vec();
   public size: vec = CircleShadowCaster.DEFAULT_SIZE;
+  public anchor: vec = CircleShadowCaster.DEFAULT_ANCHOR;
+  public minDistance: number = CircleShadowCaster.DEFAULT_MIN_DISTANCE;
+  public maxDistance: number | null = CircleShadowCaster.DEFAULT_MAX_DISTANCE;
+  public alpha: number = CircleShadowCaster.DEFAULT_ALPHA;
 
   public hovered = false;
   public selected = false;
@@ -57,6 +65,11 @@ export class CircleShadowCaster implements ShadowCaster {
         CircleShadowCaster.MAX_SIZE.y
       )
       .name('height');
+    this.folder.add(this.anchor, 'x').name('anchor x');
+    this.folder.add(this.anchor, 'y').name('anchor y');
+    this.folder.add(this, 'minDistance');
+    this.folder.add(this, 'maxDistance');
+    this.folder.add(this, 'alpha');
   }
 
   public serialise(): any {
@@ -65,6 +78,10 @@ export class CircleShadowCaster implements ShadowCaster {
       id: this.id,
       position: this.position,
       size: this.size,
+      anchor: this.anchor,
+      minDistance: this.minDistance,
+      maxDistance: this.maxDistance,
+      alpha: this.alpha,
     };
   }
 

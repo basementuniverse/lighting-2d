@@ -7,12 +7,13 @@ import { LightingScene } from './LightingScene';
 import { clampVec, pointInRectangle, quantizeVec } from './utils';
 
 export class GroundShadowReceiver {
-  private static readonly DEFAULT_SIZE = vec(200, 200);
+  private static readonly DEFAULT_SIZE = vec(256, 256);
   private static readonly DEFAULT_COLOUR = '#ddd';
-  private static readonly DEBUG_COLOUR = '#05b';
-  private static readonly DEBUG_HOVER_COLOUR = '#38f';
-  private static readonly MIN_SIZE = vec(20, 20);
-  private static readonly MAX_SIZE = vec(1000, 1000);
+  private static readonly DEFAULT_SPRITE_NAME = 'ground';
+  private static readonly DEBUG_COLOUR = '#36c';
+  private static readonly DEBUG_HOVER_COLOUR = '#58e';
+  private static readonly MIN_SIZE = vec(16, 16);
+  private static readonly MAX_SIZE = vec(1024, 1024);
 
   public readonly type = 'GroundShadowReceiver';
 
@@ -23,6 +24,7 @@ export class GroundShadowReceiver {
   public position: vec = vec();
   public size: vec = GroundShadowReceiver.DEFAULT_SIZE;
   public colour: string = GroundShadowReceiver.DEFAULT_COLOUR;
+  public spriteName: string = GroundShadowReceiver.DEFAULT_SPRITE_NAME;
 
   public hovered = false;
   public selected = false;
@@ -59,6 +61,7 @@ export class GroundShadowReceiver {
       )
       .name('height');
     this.folder.add(this, 'colour');
+    this.folder.add(this, 'spriteName');
   }
 
   public serialise(): any {
@@ -68,6 +71,7 @@ export class GroundShadowReceiver {
       position: this.position,
       size: this.size,
       colour: this.colour,
+      spriteName: this.spriteName,
     };
   }
 
@@ -148,6 +152,22 @@ export class GroundShadowReceiver {
       this.size.x,
       this.size.y
     );
+
+    const image = LightingScene.SPRITES[this.spriteName];
+    if (image) {
+      const pattern = context.createPattern(image, 'repeat');
+      if (pattern) {
+        context.fillStyle = pattern;
+        context.beginPath();
+        context.rect(
+          this.position.x,
+          this.position.y,
+          this.size.x,
+          this.size.y
+        );
+        context.fill();
+      }
+    }
 
     context.restore();
   }

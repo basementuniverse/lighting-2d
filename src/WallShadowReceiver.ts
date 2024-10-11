@@ -1,5 +1,6 @@
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
+import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
@@ -13,12 +14,14 @@ import {
 } from './utils';
 
 export class WallShadowReceiver {
-  private static readonly DEFAULT_SIZE = vec(200, 200);
+  private static readonly DEFAULT_SIZE = vec(64, 64);
   private static readonly DEFAULT_COLOUR = '#ddd';
-  private static readonly DEBUG_COLOUR = '#05b';
-  private static readonly DEBUG_HOVER_COLOUR = '#38f';
-  private static readonly MIN_SIZE = vec(20, 20);
-  private static readonly MAX_SIZE = vec(600, 600);
+  private static readonly DEFAULT_SPRITE_NAME = 'wall';
+  private static readonly DEFAULT_MASK_NAME = 'wall-mask';
+  private static readonly DEBUG_COLOUR = '#f83';
+  private static readonly DEBUG_HOVER_COLOUR = '#fb4';
+  private static readonly MIN_SIZE = vec(16, 16);
+  private static readonly MAX_SIZE = vec(256, 256);
 
   public readonly type = 'WallShadowReceiver';
 
@@ -30,6 +33,9 @@ export class WallShadowReceiver {
   public size: vec = WallShadowReceiver.DEFAULT_SIZE;
   public colour: string = WallShadowReceiver.DEFAULT_COLOUR;
   public receiveLight: boolean = true;
+  public spriteName: string = WallShadowReceiver.DEFAULT_SPRITE_NAME;
+  public maskName: string = WallShadowReceiver.DEFAULT_MASK_NAME;
+  public spriteRepeat: boolean = false;
 
   public hovered = false;
   public selected = false;
@@ -67,6 +73,9 @@ export class WallShadowReceiver {
       .name('height');
     this.folder.add(this, 'colour');
     this.folder.add(this, 'receiveLight');
+    this.folder.add(this, 'spriteName');
+    this.folder.add(this, 'maskName');
+    this.folder.add(this, 'spriteRepeat');
   }
 
   public serialise(): any {
@@ -77,6 +86,9 @@ export class WallShadowReceiver {
       size: this.size,
       colour: this.colour,
       receiveLight: this.receiveLight,
+      spriteName: this.spriteName,
+      maskName: this.maskName,
+      spriteRepeat: this.spriteRepeat,
     };
   }
 
@@ -104,10 +116,9 @@ export class WallShadowReceiver {
     );
 
     return new WallShadowReceiver(scene, {
+      ...exclude(this.serialise(), 'id'),
       position,
       size: vec.sub(br, position),
-      colour: this.colour,
-      receiveLight: this.receiveLight,
     });
   }
 
@@ -169,13 +180,41 @@ export class WallShadowReceiver {
   public draw(context: CanvasRenderingContext2D) {
     context.save();
 
-    context.fillStyle = this.colour;
-    context.fillRect(
-      this.position.x,
-      this.position.y,
-      this.size.x,
-      this.size.y
-    );
+    if (this.colour) {
+      context.fillStyle = this.colour;
+      context.fillRect(
+        this.position.x,
+        this.position.y,
+        this.size.x,
+        this.size.y
+      );
+    }
+
+    const image = LightingScene.SPRITES[this.spriteName];
+    if (image) {
+      if (this.spriteRepeat) {
+        const pattern = context.createPattern(image, 'repeat');
+        if (pattern) {
+          context.fillStyle = pattern;
+          context.beginPath();
+          context.rect(
+            this.position.x,
+            this.position.y,
+            this.size.x,
+            this.size.y
+          );
+          context.fill();
+        }
+      } else {
+        context.drawImage(
+          image,
+          this.position.x,
+          this.position.y,
+          this.size.x,
+          this.size.y
+        );
+      }
+    }
 
     context.restore();
   }
@@ -183,13 +222,41 @@ export class WallShadowReceiver {
   public drawMask(context: CanvasRenderingContext2D) {
     context.save();
 
-    context.fillStyle = 'black';
-    context.fillRect(
-      this.position.x,
-      this.position.y,
-      this.size.x,
-      this.size.y
-    );
+    if (this.colour) {
+      context.fillStyle = 'black';
+      context.fillRect(
+        this.position.x,
+        this.position.y,
+        this.size.x,
+        this.size.y
+      );
+    }
+
+    const image = LightingScene.SPRITES[this.maskName];
+    if (image) {
+      if (this.spriteRepeat) {
+        const pattern = context.createPattern(image, 'repeat');
+        if (pattern) {
+          context.fillStyle = pattern;
+          context.beginPath();
+          context.rect(
+            this.position.x,
+            this.position.y,
+            this.size.x,
+            this.size.y
+          );
+          context.fill();
+        }
+      } else {
+        context.drawImage(
+          image,
+          this.position.x,
+          this.position.y,
+          this.size.x,
+          this.size.y
+        );
+      }
+    }
 
     context.restore();
   }

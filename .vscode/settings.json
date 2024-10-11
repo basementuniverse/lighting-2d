@@ -1,5 +1,5 @@
 {
-  "github.copilot.editor.enableAutoCompletions": true,
+  "github.copilot.editor.enableAutoCompletions": false,
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit"
   },

@@ -5,15 +5,17 @@ import { v4 as uuid } from 'uuid';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
 import ShadowCaster from './ShadowCaster';
-import { AnchorPosition } from './types';
 import { clampVec, pointInRectangle, quantizeVec } from './utils';
 
 export class SpriteShadowCaster implements ShadowCaster {
-  private static readonly DEFAULT_SIZE = vec(100, 100);
-  private static readonly DEBUG_COLOUR = '#b05';
-  private static readonly DEBUG_HOVER_COLOUR = '#d27';
-  private static readonly MIN_SIZE = vec(20, 20);
-  private static readonly MAX_SIZE = vec(200, 200);
+  private static readonly DEFAULT_SIZE = vec(64, 64);
+  private static readonly DEFAULT_SHADOW_NAME = 'character-shadow';
+  private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
+  private static readonly DEFAULT_OFFSET = vec(0.5, 0.9);
+  private static readonly DEBUG_COLOUR = '#c33';
+  private static readonly DEBUG_HOVER_COLOUR = '#f44';
+  private static readonly MIN_SIZE = vec(16, 16);
+  private static readonly MAX_SIZE = vec(256, 256);
 
   public readonly type = 'SpriteShadowCaster';
 
@@ -23,9 +25,9 @@ export class SpriteShadowCaster implements ShadowCaster {
 
   public position: vec = vec();
   public size: vec = SpriteShadowCaster.DEFAULT_SIZE;
-  public spriteName: string = 'test-shadow';
-  public tempSpriteName: string = 'test-sprite';
-  public anchor: AnchorPosition = AnchorPosition.Centre;
+  public shadowName: string = SpriteShadowCaster.DEFAULT_SHADOW_NAME;
+  public anchor: vec = SpriteShadowCaster.DEFAULT_ANCHOR;
+  public offset: vec = SpriteShadowCaster.DEFAULT_OFFSET;
 
   public hovered = false;
   public selected = false;
@@ -61,13 +63,15 @@ export class SpriteShadowCaster implements ShadowCaster {
         SpriteShadowCaster.MAX_SIZE.y
       )
       .name('height');
-    this.folder.add(this, 'spriteName');
-    this.folder.add(this, 'tempSpriteName');
-    this.folder.add(this, 'anchor', Object.values(AnchorPosition));
+    this.folder.add(this, 'shadowName');
+    this.folder.add(this.anchor, 'x').name('anchor x');
+    this.folder.add(this.anchor, 'y').name('anchor y');
+    this.folder.add(this.offset, 'x').name('offset x');
+    this.folder.add(this.offset, 'y').name('offset y');
   }
 
-  public get sprite(): HTMLImageElement | null {
-    return LightingScene.SPRITES[this.spriteName] ?? null;
+  public get shadow(): HTMLImageElement | null {
+    return LightingScene.SPRITES[this.shadowName] ?? null;
   }
 
   public serialise(): any {
@@ -76,8 +80,9 @@ export class SpriteShadowCaster implements ShadowCaster {
       id: this.id,
       position: this.position,
       size: this.size,
-      spriteName: this.spriteName,
+      shadowName: this.shadowName,
       anchor: this.anchor,
+      offset: this.offset,
     };
   }
 

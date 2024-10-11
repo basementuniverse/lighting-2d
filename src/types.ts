@@ -58,15 +58,3 @@ export enum Side {
   Bottom = 'bottom',
   Left = 'left',
 }
-
-export enum AnchorPosition {
-  TopLeft = 'top-left',
-  Top = 'top',
-  TopRight = 'top-right',
-  RightMiddle = 'right',
-  BottomRight = 'bottom-right',
-  Bottom = 'bottom',
-  BottomLeft = 'bottom-left',
-  Left = 'left',
-  Centre = 'centre',
-}

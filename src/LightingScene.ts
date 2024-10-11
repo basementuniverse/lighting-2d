@@ -13,7 +13,7 @@ import { SpriteShadowCaster } from './SpriteShadowCaster';
 import { WallShadowReceiver } from './WallShadowReceiver';
 
 export class LightingScene {
-  public static readonly GRID_SIZE = 20;
+  public static readonly GRID_SIZE = 16;
   public static readonly SPRITES: { [key: string]: HTMLImageElement } = {};
   private static readonly CAMERA_SPEED: number = 100;
   private static readonly CAMERA_INITIAL_POSITION: vec = vec(1000, 600);
@@ -100,17 +100,23 @@ export class LightingScene {
       .name('Optimise');
     Game.gui.add(this.lightingSystem, 'ambientLightColour').listen();
 
-    const testSpriteImage = new Image();
-    testSpriteImage.src = '../images/test-sprite.png';
-    testSpriteImage.onload = () => {
-      LightingScene.SPRITES['test-sprite'] = testSpriteImage;
-    };
-
-    const testShadowImage = new Image();
-    testShadowImage.src = '../images/test-shadow.png';
-    testShadowImage.onload = () => {
-      LightingScene.SPRITES['test-shadow'] = testShadowImage;
-    };
+    this.loadImage('../images/test-shadow.png', 'test-shadow');
+    this.loadImage('../images/character.png', 'character');
+    this.loadImage('../images/character-mask.png', 'character-mask');
+    this.loadImage('../images/character-shadow.png', 'character-shadow');
+    this.loadImage('../images/wall.png', 'wall');
+    this.loadImage('../images/wall-mask.png', 'wall-mask');
+    this.loadImage('../images/wall2.png', 'wall2');
+    this.loadImage('../images/wall2-mask.png', 'wall2-mask');
+    this.loadImage('../images/ground.png', 'ground');
+    this.loadImage('../images/anvil.png', 'anvil');
+    this.loadImage('../images/anvil-mask.png', 'anvil-mask');
+    this.loadImage('../images/barrel.png', 'barrel');
+    this.loadImage('../images/barrel-mask.png', 'barrel-mask');
+    this.loadImage('../images/sign.png', 'sign');
+    this.loadImage('../images/sign-mask.png', 'sign-mask');
+    this.loadImage('../images/well.png', 'well');
+    this.loadImage('../images/well-mask.png', 'well-mask');
   }
 
   private store() {
@@ -191,9 +197,24 @@ export class LightingScene {
     );
   }
 
+  private loadImage(path: string, name: string) {
+    const image = new Image();
+    image.src = path;
+    image.onload = () => {
+      LightingScene.SPRITES[name] = image;
+    };
+  }
+
   public update(dt: number) {
     const cameraBounds = this.camera.bounds;
+    const mouseWorldPosition = this.camera.positionToWorld(
+      InputManager.mousePosition
+    );
 
+    Debug.value(
+      'Mouse world position',
+      vec.str(vec.map(mouseWorldPosition, v => v.toFixed(2)))
+    );
     Debug.value(
       'Camera position',
       vec.str(vec.map(this.camera.position, v => v.toFixed(2)))
@@ -314,9 +335,6 @@ export class LightingScene {
     }
 
     // Handle item create
-    const mouseWorldPosition = this.camera.positionToWorld(
-      InputManager.mousePosition
-    );
     if (InputManager.keyDown('ShiftLeft')) {
       // Create GroundShadowReceiver
       if (InputManager.keyPressed('KeyG')) {
@@ -363,7 +381,7 @@ export class LightingScene {
         );
       }
 
-      // Create light
+      // Create Light
       if (InputManager.keyPressed('KeyL')) {
         this.lightingSystem.lights.push(
           new Light(this, {

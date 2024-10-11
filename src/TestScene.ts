@@ -167,7 +167,7 @@ export class TestScene {
     // Test lineSegmentYIntercept
     // -------------------------------------------------------------------------
     // #region
-    let t2: number | null = null;
+    let t2: [number, number] | null = null;
     if (this.lineStart && this.lineEnd) {
       t2 = lineYIntercept(
         {
@@ -184,7 +184,7 @@ export class TestScene {
     context.stroke();
 
     if (t2) {
-      Debug.marker('t2', '', vec(t2, this.TEST_Y));
+      Debug.marker('t2', '', vec(t2[0], this.TEST_Y));
     }
     // #endregion
 
@@ -542,7 +542,7 @@ export class TestScene {
     });
 
     if (casterInterval.bottom > receiverInterval.bottom) {
-      let rightIntercept: number | null = null;
+      let rightIntercept: [number, number] | null = null;
       if (rightEdge) {
         rightIntercept = lineYIntercept(rightEdge, receiverInterval.bottom);
         if (rightIntercept) {
@@ -550,14 +550,14 @@ export class TestScene {
             'right_intercept',
             '',
             vec(
-              Math.max(rightIntercept, receiverInterval.left),
+              Math.max(rightIntercept[0], receiverInterval.left),
               receiverInterval.bottom
             )
           );
         }
       }
 
-      let leftIntercept: number | null = null;
+      let leftIntercept: [number, number] | null = null;
       if (leftEdge) {
         leftIntercept = lineYIntercept(leftEdge, receiverInterval.bottom);
         if (leftIntercept) {
@@ -565,7 +565,7 @@ export class TestScene {
             'left_intercept',
             '',
             vec(
-              Math.min(leftIntercept, receiverInterval.right),
+              Math.min(leftIntercept[0], receiverInterval.right),
               receiverInterval.bottom
             )
           );
@@ -591,7 +591,7 @@ export class TestScene {
           casterInterval.right < receiverInterval.left &&
           rightIntercept &&
           rightEdge &&
-          rightIntercept > rightEdge.start.x &&
+          rightIntercept[0] > rightEdge.start.x &&
           rightEdge.start.x > rightEdge.end.x
         ) {
           show = false;
@@ -603,7 +603,7 @@ export class TestScene {
           casterInterval.left > receiverInterval.right &&
           leftIntercept &&
           leftEdge &&
-          leftIntercept < leftEdge.start.x &&
+          leftIntercept[0] < leftEdge.start.x &&
           leftEdge.start.x < leftEdge.end.x
         ) {
           show = false;
@@ -613,13 +613,13 @@ export class TestScene {
       const min = Math.max(
         receiverInterval.left,
         leftEdge
-          ? lineYIntercept(leftEdge, receiverInterval.bottom) ?? -Infinity
+          ? lineYIntercept(leftEdge, receiverInterval.bottom)?.[0] ?? -Infinity
           : -Infinity
       );
       const max = Math.min(
         receiverInterval.right,
         rightEdge
-          ? lineYIntercept(rightEdge, receiverInterval.bottom) ?? Infinity
+          ? lineYIntercept(rightEdge, receiverInterval.bottom)?.[0] ?? Infinity
           : Infinity
       );
 

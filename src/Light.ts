@@ -1,7 +1,14 @@
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { parseColor } from '@basementuniverse/parsecolor';
-import { at, clamp, exclude, remap } from '@basementuniverse/utils';
+import {
+  at,
+  clamp,
+  exclude,
+  remap,
+  smoothstep,
+  unlerp,
+} from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import { CircleShadowCaster } from './CircleShadowCaster';
@@ -22,7 +29,6 @@ import {
   Sector2d,
 } from './types';
 import {
-  anchorPosition,
   colourToString,
   lineIsFacing,
   lineYIntercept,
@@ -35,11 +41,14 @@ import {
 } from './utils';
 import { WallShadowReceiver } from './WallShadowReceiver';
 
-type Shadow = {
+const INTERCEPT_X = 0;
+const INTERCEPT_T = 1;
+
+type Shadow<T extends ShadowCaster> = {
   /**
    * The entity that is casting this shadow
    */
-  caster: ShadowCaster;
+  caster: T;
 
   /**
    * The leftmost edge of the shadow
@@ -50,30 +59,18 @@ type Shadow = {
    * The rightmost edge of the shadow
    */
   rightEdge: Line | null;
-};
-
-type SpriteWallShadowIntercept = {
-  /**
-   * The shadow that this intercept belongs to
-   */
-  shadow: Exclude<Shadow, 'caster'> & {
-    caster: SpriteShadowCaster;
-  };
 
   /**
-   * Is this the left or right edge of the shadow
+   * The position of a circle shadow (only used when rendering a circle shadow
+   * onto a wall)
    */
-  type: 'left' | 'right';
+  position?: vec;
 
   /**
-   * The position of this intercept
+   * The size of a circle shadow (only used when rendering a circle shadow onto
+   * a wall)
    */
-  position: vec;
-
-  /**
-   * The normalised progress along the shadow's edge
-   */
-  t: number;
+  size?: vec;
 };
 
 export class Light {
@@ -81,13 +78,17 @@ export class Light {
   private static readonly DEFAULT_COLOUR = 'white';
   private static readonly DEFAULT_INTENSITY = 0.2;
   private static readonly HOVER_RADIUS = 20;
-  private static readonly DEBUG_COLOUR = '#f50';
-  private static readonly DEBUG_HOVER_COLOUR = '#f90';
+  private static readonly DEBUG_COLOUR = '#5b3';
+  private static readonly DEBUG_HOVER_COLOUR = '#7e5';
   private static readonly MIN_RADIUS = 10;
   private static readonly MAX_RADIUS = 400;
   private static readonly SHADOW_BUFFER = 20;
   private static readonly WALL_LIGHT_CUTOFF_DISTANCE = 20;
-  private static readonly WALL_LIGHT_LENGTH_COEFFICIENT = 0.75;
+  private static readonly SPRITE_WALL_SHADOW_LENGTH_COEFFICIENT = 0.75;
+  private static readonly SPRITE_SHADOW_MIN_LENGTH_COEFFICIENT = 0.75;
+  private static readonly SPRITE_SHADOW_MAX_LENGTH_COEFFICIENT = 4;
+  private static readonly SPRITE_SHADOW_INTERCEPT_OFFSET = 0.1;
+  private static readonly CIRCLE_WALL_SHADOW_HEIGHT_COEFFICIENT = 0.5;
 
   public readonly type = 'Light';
 
@@ -287,8 +288,9 @@ export class Light {
     this.groundLightContext.drawImage(this.lightCanvas, 0, 0);
 
     // Subtract shadows from ground lightmap
-    let regionShadows: Shadow[] = [];
-    let spriteShadows: Shadow[] = [];
+    let regionShadows: Shadow<RegionShadowCaster>[] = [];
+    let spriteShadows: Shadow<SpriteShadowCaster>[] = [];
+    let circleShadows: Shadow<CircleShadowCaster>[] = [];
     if (this.castShadows) {
       regionShadows = this.prepareGroundRegionShadows(
         lightRectangle,
@@ -298,6 +300,11 @@ export class Light {
       spriteShadows = this.prepareGroundSpriteShadows(
         lightRectangle,
         spriteShadowCasters
+      );
+
+      circleShadows = this.prepareGroundCircleShadows(
+        lightRectangle,
+        circleShadowCasters
       );
     }
 
@@ -321,6 +328,12 @@ export class Light {
       this.prepareWallSpriteShadows(
         lightRectangle,
         spriteShadows,
+        wallShadowReceivers
+      );
+
+      this.prepareWallCircleShadows(
+        lightRectangle,
+        circleShadows,
         wallShadowReceivers
       );
     }
@@ -419,7 +432,7 @@ export class Light {
   private prepareGroundRegionShadows(
     lightRectangle: Rectangle,
     regionShadowCasters: RegionShadowCaster[]
-  ): Shadow[] {
+  ): Shadow<RegionShadowCaster>[] {
     this.groundLightContext.save();
     this.groundLightContext.fillStyle = 'black';
     this.groundLightContext.translate(
@@ -428,14 +441,14 @@ export class Light {
     );
 
     // Shadow metadata for each shadow
-    const shadows: Shadow[] = [];
+    const shadows: Shadow<RegionShadowCaster>[] = [];
     for (const caster of regionShadowCasters) {
       const casterRectangle = {
         position: caster.position,
         size: caster.size,
       };
 
-      // Check if this wall is in range of the light
+      // Check if this caster is in range of the light
       if (rectanglesIntersect(lightRectangle, casterRectangle)) {
         const shadow = {
           caster,
@@ -458,21 +471,21 @@ export class Light {
   private prepareGroundSpriteShadows(
     lightRectangle: Rectangle,
     spriteShadowCasters: SpriteShadowCaster[]
-  ): Shadow[] {
+  ): Shadow<SpriteShadowCaster>[] {
     this.groundLightContext.save();
     this.groundLightContext.translate(this._radius, this._radius);
 
     // Shadow metadata for each shadow
-    const shadows: Shadow[] = [];
+    const shadows: Shadow<SpriteShadowCaster>[] = [];
     for (const caster of spriteShadowCasters) {
       const casterRectangle = {
         position: caster.position,
         size: caster.size,
       };
 
-      // Check if this wall is in range of the light
+      // Check if this caster is in range of the light
       if (rectanglesIntersect(lightRectangle, casterRectangle)) {
-        const shadowSprite = caster.sprite;
+        const shadowSprite = caster.shadow;
 
         // If the shadow sprite is missing for this caster then it doesn't
         // cast a shadow
@@ -481,10 +494,21 @@ export class Light {
         }
 
         // Render the ground shadow sprite onto the lightmap
-        const shadowOrigin = anchorPosition(casterRectangle, caster.anchor);
-        const shadowEdge = vec.mul(vec.sub(shadowOrigin, this.position), 1);
+        const shadowOrigin = vec.add(
+          caster.position,
+          vec(caster.size.x * caster.anchor.x, caster.size.y * caster.anchor.y)
+        );
+        const shadowLength = smoothstep(
+          caster.size.y * Light.SPRITE_SHADOW_MIN_LENGTH_COEFFICIENT,
+          caster.size.y * Light.SPRITE_SHADOW_MAX_LENGTH_COEFFICIENT,
+          unlerp(0, this.radius, vec.len(vec.sub(shadowOrigin, this.position)))
+        );
+        const shadowEdge = vec.mul(
+          vec.nor(vec.sub(shadowOrigin, this.position)),
+          shadowLength
+        );
+        const shadowEdgeLength = vec.len(shadowEdge);
         const shadowAngle = vec.rad(shadowEdge) + constants.HALF_PI;
-        const shadowLength = vec.len(shadowEdge);
 
         this.groundLightContext.save();
         this.groundLightContext.translate(
@@ -494,25 +518,100 @@ export class Light {
         this.groundLightContext.rotate(shadowAngle);
         this.groundLightContext.drawImage(
           shadowSprite,
-          -caster.size.x / 2,
-          -shadowLength,
+          -caster.size.x * caster.offset.x,
+          -shadowEdgeLength * caster.offset.y,
           caster.size.x,
-          shadowLength
+          shadowEdgeLength
         );
         this.groundLightContext.restore();
 
         // Save shadow metadata for use later when rendering wall shadows
-        const corner = vec.rot(vec(caster.size.x / 2, 0), shadowAngle);
+        const leftCorner = vec.rot(
+          vec(caster.size.x * caster.offset.x, 0),
+          shadowAngle
+        );
+        const rightCorner = vec.rot(
+          vec(caster.size.x * (1 - caster.offset.x), 0),
+          shadowAngle
+        );
         shadows.push({
           caster,
           leftEdge: {
-            start: vec.sub(shadowOrigin, corner),
-            end: vec.sub(vec.add(shadowOrigin, shadowEdge), corner),
+            start: vec.sub(shadowOrigin, leftCorner),
+            end: vec.sub(vec.add(shadowOrigin, shadowEdge), leftCorner),
           },
           rightEdge: {
-            start: vec.add(shadowOrigin, corner),
-            end: vec.add(vec.add(shadowOrigin, shadowEdge), corner),
+            start: vec.add(shadowOrigin, rightCorner),
+            end: vec.add(vec.add(shadowOrigin, shadowEdge), rightCorner),
           },
+        });
+      }
+    }
+    this.groundLightContext.restore();
+
+    return shadows;
+  }
+
+  private prepareGroundCircleShadows(
+    lightRectangle: Rectangle,
+    circleShadowCasters: CircleShadowCaster[]
+  ): Shadow<CircleShadowCaster>[] {
+    this.groundLightContext.save();
+    this.groundLightContext.fillStyle = 'black';
+    this.groundLightContext.translate(this._radius, this._radius);
+
+    // Shadow metadata for each shadow
+    const shadows: Shadow<CircleShadowCaster>[] = [];
+    for (const caster of circleShadowCasters) {
+      const casterRectangle = {
+        position: caster.position,
+        size: caster.size,
+      };
+
+      // Check if this caster is in range of the light
+      if (rectanglesIntersect(lightRectangle, casterRectangle)) {
+        // Render a circular ground shadow onto the lightmap
+        const shadowOrigin = vec.add(
+          caster.position,
+          vec(caster.size.x * caster.anchor.x, caster.size.y * caster.anchor.y)
+        );
+        const shadowDistance = smoothstep(
+          caster.minDistance,
+          caster.maxDistance ?? this.radius,
+          unlerp(0, this.radius, vec.len(vec.sub(shadowOrigin, this.position)))
+        );
+        const shadowPosition = vec.mul(
+          vec.nor(vec.sub(shadowOrigin, this.position)),
+          shadowDistance
+        );
+        const shadowSize = vec.mul(caster.size, 0.5);
+
+        this.groundLightContext.save();
+        this.groundLightContext.globalAlpha = caster.alpha;
+        this.groundLightContext.translate(
+          shadowOrigin.x - this.position.x,
+          shadowOrigin.y - this.position.y
+        );
+        this.groundLightContext.beginPath();
+        this.groundLightContext.ellipse(
+          shadowPosition.x,
+          shadowPosition.y,
+          shadowSize.x,
+          shadowSize.y,
+          0,
+          0,
+          Math.PI * 2
+        );
+        this.groundLightContext.fill();
+        this.groundLightContext.restore();
+
+        // Save shadow metadata for use later when rendering wall shadows
+        shadows.push({
+          caster,
+          leftEdge: null,
+          rightEdge: null,
+          position: vec.add(shadowOrigin, shadowPosition),
+          size: shadowSize,
         });
       }
     }
@@ -523,7 +622,7 @@ export class Light {
 
   private prepareWallRegionShadows(
     lightRectangle: Rectangle,
-    regionShadows: Shadow[],
+    regionShadows: Shadow<RegionShadowCaster>[],
     regionShadowCasters: RegionShadowCaster[],
     wallShadowReceivers: WallShadowReceiver[]
   ) {
@@ -720,7 +819,7 @@ export class Light {
 
   private prepareWallSpriteShadows(
     lightRectangle: Rectangle,
-    spriteShadows: Shadow[],
+    spriteShadows: Shadow<SpriteShadowCaster>[],
     wallShadowReceivers: WallShadowReceiver[]
   ) {
     this.wallLightContext.save();
@@ -729,7 +828,6 @@ export class Light {
       -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
 
-    const intercepts: SpriteWallShadowIntercept[] = [];
     for (const wall of wallShadowReceivers) {
       const wallRectangle = {
         position: wall.position,
@@ -747,6 +845,51 @@ export class Light {
 
         // Check each shadow to see if it occludes this wall
         for (const shadow of spriteShadows) {
+          const shadowSprite = shadow.caster.shadow;
+
+          // If the shadow sprite is missing for this caster then it doesn't
+          // cast a shadow
+          if (!shadowSprite) {
+            continue;
+          }
+
+          const shadowCasterRectangle = {
+            position: shadow.caster.position,
+            size: shadow.caster.size,
+          };
+          const shadowCasterInterval = rectangleToInterval(
+            shadowCasterRectangle
+          );
+
+          // A shadow caster doesn't cast a shadow onto a receiver that
+          // overlaps it
+          if (rectanglesIntersect(wallRectangle, shadowCasterRectangle)) {
+            continue;
+          }
+
+          // Check if this shadow has no edges (this means the light is inside
+          // the shadow caster region, and as such it doesn't cast a shadow)
+          if (shadow.leftEdge === null && shadow.rightEdge === null) {
+            continue;
+          }
+
+          // If both shadow edges are not pointing up then this shadow doesn't
+          // cast on this wall
+          if (
+            shadow.leftEdge &&
+            shadow.leftEdge.start.y <= shadow.leftEdge.end.y &&
+            shadow.rightEdge &&
+            shadow.rightEdge.start.y <= shadow.rightEdge.end.y
+          ) {
+            continue;
+          }
+
+          // Check if this wall's lower edge is below the shadow caster's
+          // lower edge. If so, the caster doesn't cast a shadow on this wall
+          if (wallInterval.bottom > shadowCasterInterval.bottom) {
+            continue;
+          }
+
           let leftIntercept: [number, number] | null = null;
           if (
             shadow.leftEdge &&
@@ -808,132 +951,148 @@ export class Light {
           // Don't render a shadow if the intercepts are the wrong way 'round
           // or the gap between them is 0
           // (not sure if this is possible, but just making sure)
-          if (leftIntercept >= rightIntercept!) {
+          if (leftIntercept[INTERCEPT_X] >= rightIntercept[INTERCEPT_X]) {
             continue;
           }
 
           // Don't render the shadow if it's outside the wall boundaries
           if (
-            leftIntercept[0] > wallInterval.right ||
-            rightIntercept[0] < wallInterval.left
+            leftIntercept[INTERCEPT_X] > wallInterval.right ||
+            rightIntercept[INTERCEPT_X] < wallInterval.left
           ) {
             continue;
           }
 
-          intercepts.push(
-            {
-              shadow: {
-                ...shadow,
-                caster: shadow.caster as SpriteShadowCaster,
-              },
-              type: 'left',
-              position: vec(leftIntercept[0], wallInterval.bottom),
-              t: leftIntercept[1],
-            },
-            {
-              shadow: {
-                ...shadow,
-                caster: shadow.caster as SpriteShadowCaster,
-              },
-              type: 'right',
-              position: vec(rightIntercept[0], wallInterval.bottom),
-              t: rightIntercept[1],
-            }
+          const t =
+            (leftIntercept[INTERCEPT_T] + rightIntercept[INTERCEPT_T]) / 2 +
+            Light.SPRITE_SHADOW_INTERCEPT_OFFSET;
+          const l =
+            (vec.len(vec.sub(shadow.leftEdge!.start, shadow.leftEdge!.end)) +
+              vec.len(
+                vec.sub(shadow.rightEdge!.start, shadow.rightEdge!.end)
+              )) /
+            2;
+          const sourceHeight = shadowSprite.height * (1 - t);
+          const destinationHeight =
+            l * (1 - t) * Light.SPRITE_WALL_SHADOW_LENGTH_COEFFICIENT;
+
+          this.wallLightContext.save();
+          this.wallLightContext.beginPath();
+          this.wallLightContext.rect(
+            wallRectangle.position.x,
+            wallRectangle.position.y,
+            wallRectangle.size.x,
+            wallRectangle.size.y
           );
-
-          // Debug.marker(
-          //   `LI ${this.id} ${shadow.caster.id} ${wall.id}`,
-          //   '',
-          //   vec(leftIntercept[0], wallInterval.bottom),
-          //   {
-          //     level: 2,
-          //     space: 'world',
-          //     showLabel: true,
-          //     showValue: false,
-          //     markerColour: 'red',
-          //   }
-          // );
-
-          // Debug.marker(
-          //   `RI ${this.id} ${shadow.caster.id} ${wall.id}`,
-          //   '',
-          //   vec(rightIntercept[0], wallInterval.bottom),
-          //   {
-          //     level: 2,
-          //     space: 'world',
-          //     showLabel: true,
-          //     showValue: false,
-          //     markerColour: 'green',
-          //   }
-          // );
+          this.wallLightContext.clip();
+          this.wallLightContext.drawImage(
+            shadowSprite,
+            0,
+            0,
+            shadowSprite.width,
+            sourceHeight,
+            leftIntercept[INTERCEPT_X],
+            wallInterval.bottom - destinationHeight,
+            rightIntercept[INTERCEPT_X] - leftIntercept[INTERCEPT_X],
+            destinationHeight
+          );
+          this.wallLightContext.restore();
         }
       }
     }
 
-    // Remove duplicate intercepts
-    const uniqueIntercepts = Object.values(
-      intercepts.reduce(
-        (map, intercept) => ({
-          ...map,
-          [`${vec.str(intercept.position)}-${intercept.shadow.caster.id}`]:
-            intercept,
-        }),
-        {} as Record<string, SpriteWallShadowIntercept>
-      )
+    this.wallLightContext.restore();
+  }
+
+  private prepareWallCircleShadows(
+    lightRectangle: Rectangle,
+    circleShadows: Shadow<CircleShadowCaster>[],
+    wallShadowReceivers: WallShadowReceiver[]
+  ) {
+    this.wallLightContext.save();
+    this.wallLightContext.fillStyle = 'black';
+    this.wallLightContext.translate(
+      -this.position.x + this._radius,
+      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
 
-    // Group intercepts into left/right pairs
-    const groupedIntercepts = Object.values(
-      uniqueIntercepts.reduce(
-        (map, intercept) =>
-          ((key: string) => ({
-            ...map,
-            [key]: [...(map[key] ?? []), intercept],
-          }))(`${intercept.position.y}-${intercept.shadow.caster.id}`),
-        {} as Record<string, SpriteWallShadowIntercept[]>
-      )
-    );
+    for (const wall of wallShadowReceivers) {
+      const wallRectangle = {
+        position: wall.position,
+        size: wall.size,
+      };
+      const wallInterval = rectangleToInterval(wallRectangle);
 
-    // Draw a shadow for each group
-    for (const group of groupedIntercepts) {
-      const shadowSprite = group[0].shadow.caster.sprite;
+      // Check if this wall shadow receiver is in range of the light
+      if (rectanglesIntersect(lightRectangle, wallRectangle)) {
+        // If the wall doesn't receive light, it also doesn't receive
+        // partial or full shadows
+        if (!wall.receiveLight) {
+          continue;
+        }
 
-      // If the shadow sprite is missing for this caster then it doesn't
-      // cast a shadow
-      if (!shadowSprite) {
-        continue;
+        // Check each shadow to see if it occludes this wall
+        for (const shadow of circleShadows) {
+          // If the shadow doesn't have a position or size then it's not a
+          // valid circle shadow
+          if (!shadow.position || !shadow.size) {
+            continue;
+          }
+
+          const shadowCasterRectangle = {
+            position: shadow.caster.position,
+            size: shadow.caster.size,
+          };
+          const shadowCasterInterval = rectangleToInterval(
+            shadowCasterRectangle
+          );
+
+          // A shadow caster doesn't cast a shadow onto a receiver that
+          // overlaps it
+          if (rectanglesIntersect(wallRectangle, shadowCasterRectangle)) {
+            continue;
+          }
+
+          // Check if this wall's lower edge is below the shadow caster's
+          // lower edge. If so, the caster doesn't cast a shadow on this wall
+          if (wallInterval.bottom > shadowCasterInterval.bottom) {
+            continue;
+          }
+
+          const shadowRectangle = {
+            position: vec.sub(shadow.position, vec.mul(shadow.size, 0.5)),
+            size: shadow.size,
+          };
+
+          // Only cast this shadow if it overlaps the wall
+          if (!rectanglesIntersect(wallRectangle, shadowRectangle)) {
+            continue;
+          }
+
+          this.wallLightContext.save();
+          this.wallLightContext.beginPath();
+          this.wallLightContext.rect(
+            wallRectangle.position.x,
+            wallRectangle.position.y,
+            wallRectangle.size.x,
+            wallRectangle.size.y
+          );
+          this.wallLightContext.clip();
+          this.wallLightContext.beginPath();
+          this.wallLightContext.ellipse(
+            shadow.position.x,
+            shadow.position.y,
+            shadow.size.x,
+            shadow.size.y * Light.CIRCLE_WALL_SHADOW_HEIGHT_COEFFICIENT,
+            0,
+            0,
+            Math.PI * 2
+          );
+          this.wallLightContext.globalAlpha = shadow.caster.alpha;
+          this.wallLightContext.fill();
+          this.wallLightContext.restore();
+        }
       }
-
-      const t = (group[0].t + group[1].t) / 2;
-      const l =
-        (vec.len(
-          vec.sub(
-            group[0].shadow.leftEdge!.start,
-            group[0].shadow.leftEdge!.end
-          )
-        ) +
-          vec.len(
-            vec.sub(
-              group[0].shadow.rightEdge!.start,
-              group[0].shadow.rightEdge!.end
-            )
-          )) /
-        2;
-      const sourceHeight = shadowSprite.height * (1 - t);
-      const destinationHeight =
-        l * (1 - t) * Light.WALL_LIGHT_LENGTH_COEFFICIENT;
-
-      this.wallLightContext.drawImage(
-        shadowSprite,
-        0,
-        0,
-        shadowSprite.width,
-        sourceHeight,
-        group[0].position.x,
-        group[0].position.y - destinationHeight,
-        group[1].position.x - group[0].position.x,
-        destinationHeight
-      );
     }
 
     this.wallLightContext.restore();

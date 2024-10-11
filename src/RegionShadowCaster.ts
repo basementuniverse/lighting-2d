@@ -1,5 +1,6 @@
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
+import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
@@ -14,11 +15,11 @@ import {
 } from './utils';
 
 export class RegionShadowCaster implements ShadowCaster {
-  private static readonly DEFAULT_SIZE = vec(100, 100);
-  private static readonly DEBUG_COLOUR = '#b05';
-  private static readonly DEBUG_HOVER_COLOUR = '#d27';
-  private static readonly MIN_SIZE = vec(20, 20);
-  private static readonly MAX_SIZE = vec(200, 200);
+  private static readonly DEFAULT_SIZE = vec(64, 64);
+  private static readonly DEBUG_COLOUR = '#c33';
+  private static readonly DEBUG_HOVER_COLOUR = '#f44';
+  private static readonly MIN_SIZE = vec(16, 16);
+  private static readonly MAX_SIZE = vec(256, 256);
 
   public readonly type = 'RegionShadowCaster';
 
@@ -98,6 +99,7 @@ export class RegionShadowCaster implements ShadowCaster {
     );
 
     return new RegionShadowCaster(scene, {
+      ...exclude(this.serialise(), 'id'),
       position,
       size: vec.sub(br, position),
     });
