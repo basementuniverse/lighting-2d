@@ -108,7 +108,9 @@ export class LightingScene {
     this.loadImage('../images/wall-mask.png', 'wall-mask');
     this.loadImage('../images/wall2.png', 'wall2');
     this.loadImage('../images/wall2-mask.png', 'wall2-mask');
+    this.loadImage('../images/wall-top.png', 'wall-top');
     this.loadImage('../images/ground.png', 'ground');
+    this.loadImage('../images/ground2.png', 'ground2');
     this.loadImage('../images/anvil.png', 'anvil');
     this.loadImage('../images/anvil-mask.png', 'anvil-mask');
     this.loadImage('../images/barrel.png', 'barrel');
