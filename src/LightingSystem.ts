@@ -8,20 +8,30 @@ import { Light } from './Light';
 import { LightingScene } from './LightingScene';
 import { RegionShadowCaster } from './RegionShadowCaster';
 import { SpriteShadowCaster } from './SpriteShadowCaster';
-import { Side } from './types';
+import { Side, WallShadowLayer } from './types';
 import { rectangleToInterval } from './utils';
 import { WallShadowReceiver } from './WallShadowReceiver';
 
+type LightingSystemOptions = {
+  imageSmoothingEnabled: boolean;
+};
+
 export class LightingSystem {
   public static readonly WALL_LIGHTING_Y_OFFSET = -30;
-  public static readonly MERGE_MAX_ITERATIONS = 100;
-  public static readonly MERGE_ORDER = [
+
+  private static readonly DEFAULT_OPTIONS: LightingSystemOptions = {
+    imageSmoothingEnabled: true,
+  };
+  private static readonly MERGE_MAX_ITERATIONS = 100;
+  private static readonly MERGE_ORDER = [
     'duplicate',
     Side.Bottom,
     Side.Right,
     Side.Top,
     Side.Left,
   ];
+
+  public options: LightingSystemOptions;
 
   public ambientLightColour = 'black';
   public lights: Light[] = [];
@@ -32,11 +42,25 @@ export class LightingSystem {
   public groundMaskedLightMapCanvas: HTMLCanvasElement;
   private groundMaskedLightMapContext: CanvasRenderingContext2D;
 
-  public wallMaskCanvas: HTMLCanvasElement;
-  private wallMaskContext: CanvasRenderingContext2D;
+  public wallMask1Canvas: HTMLCanvasElement;
+  private wallMask1Context: CanvasRenderingContext2D;
 
-  public wallMaskedLightMapCanvas: HTMLCanvasElement;
-  private wallMaskedLightMapContext: CanvasRenderingContext2D;
+  public wallMaskedLightMap1Canvas: HTMLCanvasElement;
+  private wallMaskedLightMap1Context: CanvasRenderingContext2D;
+
+  public wallMask2Canvas: HTMLCanvasElement;
+  private wallMask2Context: CanvasRenderingContext2D;
+
+  public wallMaskedLightMap2Canvas: HTMLCanvasElement;
+  private wallMaskedLightMap2Context: CanvasRenderingContext2D;
+
+  public constructor(options?: LightingSystemOptions) {
+    this.options = Object.assign(
+      {},
+      LightingSystem.DEFAULT_OPTIONS,
+      options ?? {}
+    );
+  }
 
   /**
    * Initialise lighting system canvases
@@ -53,16 +77,27 @@ export class LightingSystem {
     this.groundMaskedLightMapContext =
       this.groundMaskedLightMapCanvas.getContext('2d')!;
 
-    this.wallMaskCanvas = document.createElement('canvas');
-    this.wallMaskCanvas.width = Game.screen.x;
-    this.wallMaskCanvas.height = Game.screen.y;
-    this.wallMaskContext = this.wallMaskCanvas.getContext('2d')!;
+    this.wallMask1Canvas = document.createElement('canvas');
+    this.wallMask1Canvas.width = Game.screen.x;
+    this.wallMask1Canvas.height = Game.screen.y;
+    this.wallMask1Context = this.wallMask1Canvas.getContext('2d')!;
 
-    this.wallMaskedLightMapCanvas = document.createElement('canvas');
-    this.wallMaskedLightMapCanvas.width = Game.screen.x;
-    this.wallMaskedLightMapCanvas.height = Game.screen.y;
-    this.wallMaskedLightMapContext =
-      this.wallMaskedLightMapCanvas.getContext('2d')!;
+    this.wallMaskedLightMap1Canvas = document.createElement('canvas');
+    this.wallMaskedLightMap1Canvas.width = Game.screen.x;
+    this.wallMaskedLightMap1Canvas.height = Game.screen.y;
+    this.wallMaskedLightMap1Context =
+      this.wallMaskedLightMap1Canvas.getContext('2d')!;
+
+    this.wallMask2Canvas = document.createElement('canvas');
+    this.wallMask2Canvas.width = Game.screen.x;
+    this.wallMask2Canvas.height = Game.screen.y;
+    this.wallMask2Context = this.wallMask2Canvas.getContext('2d')!;
+
+    this.wallMaskedLightMap2Canvas = document.createElement('canvas');
+    this.wallMaskedLightMap2Canvas.width = Game.screen.x;
+    this.wallMaskedLightMap2Canvas.height = Game.screen.y;
+    this.wallMaskedLightMap2Context =
+      this.wallMaskedLightMap2Canvas.getContext('2d')!;
   }
 
   /**
@@ -96,6 +131,8 @@ export class LightingSystem {
     // Prepare ground mask
     this.groundMaskCanvas.width = Game.screen.x;
     this.groundMaskCanvas.height = Game.screen.y;
+    this.groundMaskContext.imageSmoothingEnabled =
+      this.options.imageSmoothingEnabled;
     this.groundMaskContext.save();
     camera.setTransforms(this.groundMaskContext);
 
@@ -111,21 +148,51 @@ export class LightingSystem {
 
     this.groundMaskContext.restore();
 
-    // Prepare wall mask
-    this.wallMaskCanvas.width = Game.screen.x;
-    this.wallMaskCanvas.height = Game.screen.y;
-    this.wallMaskContext.save();
-    camera.setTransforms(this.wallMaskContext);
+    // Prepare wall mask 1
+    this.wallMask1Canvas.width = Game.screen.x;
+    this.wallMask1Canvas.height = Game.screen.y;
+    this.wallMask1Context.imageSmoothingEnabled =
+      this.options.imageSmoothingEnabled;
+    this.wallMask1Context.save();
+    camera.setTransforms(this.wallMask1Context);
 
     wallShadowReceivers.forEach(wall => {
-      wall.drawMask(this.wallMaskContext);
+      if (wall.layer === WallShadowLayer.One) {
+        wall.drawMask(this.wallMask1Context);
+      }
     });
 
-    this.wallMaskContext.restore();
+    this.wallMask1Context.globalCompositeOperation = 'destination-out';
+
+    wallShadowReceivers.forEach(wall => {
+      if (wall.layer === WallShadowLayer.Two) {
+        wall.drawMask(this.wallMask1Context);
+      }
+    });
+
+    this.wallMask1Context.restore();
+
+    // Prepare wall mask 2
+    this.wallMask2Canvas.width = Game.screen.x;
+    this.wallMask2Canvas.height = Game.screen.y;
+    this.wallMask2Context.imageSmoothingEnabled =
+      this.options.imageSmoothingEnabled;
+    this.wallMask2Context.save();
+    camera.setTransforms(this.wallMask2Context);
+
+    wallShadowReceivers.forEach(wall => {
+      if (wall.layer === WallShadowLayer.Two) {
+        wall.drawMask(this.wallMask2Context);
+      }
+    });
+
+    this.wallMask2Context.restore();
 
     // Prepare ground-masked lightmap canvas
     this.groundMaskedLightMapCanvas.width = Game.screen.x;
     this.groundMaskedLightMapCanvas.height = Game.screen.y;
+    this.groundMaskedLightMapContext.imageSmoothingEnabled =
+      this.options.imageSmoothingEnabled;
     this.groundMaskedLightMapContext.save();
     camera.setTransforms(this.groundMaskedLightMapContext);
 
@@ -156,14 +223,16 @@ export class LightingSystem {
     this.groundMaskedLightMapContext.restore();
     this.groundMaskedLightMapContext.restore();
 
-    // Prepare wall-masked lightmap canvas
-    this.wallMaskedLightMapCanvas.width = Game.screen.x;
-    this.wallMaskedLightMapCanvas.height = Game.screen.y;
-    this.wallMaskedLightMapContext.save();
-    camera.setTransforms(this.wallMaskedLightMapContext);
+    // Prepare wall-masked lightmap 1 canvas
+    this.wallMaskedLightMap1Canvas.width = Game.screen.x;
+    this.wallMaskedLightMap1Canvas.height = Game.screen.y;
+    this.wallMaskedLightMap1Context.imageSmoothingEnabled =
+      this.options.imageSmoothingEnabled;
+    this.wallMaskedLightMap1Context.save();
+    camera.setTransforms(this.wallMaskedLightMap1Context);
 
-    this.wallMaskedLightMapContext.fillStyle = this.ambientLightColour;
-    this.wallMaskedLightMapContext.fillRect(
+    this.wallMaskedLightMap1Context.fillStyle = this.ambientLightColour;
+    this.wallMaskedLightMap1Context.fillRect(
       camera.bounds.left,
       camera.bounds.top,
       camera.bounds.right - camera.bounds.left,
@@ -171,10 +240,36 @@ export class LightingSystem {
     );
 
     // Draw lights
-    this.wallMaskedLightMapContext.globalCompositeOperation = 'screen';
+    this.wallMaskedLightMap1Context.globalCompositeOperation = 'screen';
     this.lights.forEach(light => {
-      this.wallMaskedLightMapContext.drawImage(
-        light.wallLightCanvas,
+      this.wallMaskedLightMap1Context.drawImage(
+        light.wallLight1Canvas,
+        light.position.x - light.radius,
+        light.position.y - light.radius + LightingSystem.WALL_LIGHTING_Y_OFFSET
+      );
+    });
+
+    // Prepare wall-masked lightmap 2 canvas
+    this.wallMaskedLightMap2Canvas.width = Game.screen.x;
+    this.wallMaskedLightMap2Canvas.height = Game.screen.y;
+    this.wallMaskedLightMap2Context.imageSmoothingEnabled =
+      this.options.imageSmoothingEnabled;
+    this.wallMaskedLightMap2Context.save();
+    camera.setTransforms(this.wallMaskedLightMap2Context);
+
+    this.wallMaskedLightMap2Context.fillStyle = this.ambientLightColour;
+    this.wallMaskedLightMap2Context.fillRect(
+      camera.bounds.left,
+      camera.bounds.top,
+      camera.bounds.right - camera.bounds.left,
+      camera.bounds.bottom - camera.bounds.top
+    );
+
+    // Draw lights
+    this.wallMaskedLightMap2Context.globalCompositeOperation = 'screen';
+    this.lights.forEach(light => {
+      this.wallMaskedLightMap2Context.drawImage(
+        light.wallLight2Canvas,
         light.position.x - light.radius,
         light.position.y - light.radius + LightingSystem.WALL_LIGHTING_Y_OFFSET
       );
@@ -182,14 +277,23 @@ export class LightingSystem {
 
     this.prepareNonLightReceivingWallShadows(wallShadowReceivers);
 
-    // Mask wall
-    this.wallMaskedLightMapContext.save();
-    this.wallMaskedLightMapContext.setTransform(1, 0, 0, 1, 0, 0);
-    this.wallMaskedLightMapContext.globalCompositeOperation =
+    // Mask walls layer 1
+    this.wallMaskedLightMap1Context.save();
+    this.wallMaskedLightMap1Context.setTransform(1, 0, 0, 1, 0, 0);
+    this.wallMaskedLightMap1Context.globalCompositeOperation =
       'destination-atop';
-    this.wallMaskedLightMapContext.drawImage(this.wallMaskCanvas, 0, 0);
-    this.wallMaskedLightMapContext.restore();
-    this.wallMaskedLightMapContext.restore();
+    this.wallMaskedLightMap1Context.drawImage(this.wallMask1Canvas, 0, 0);
+    this.wallMaskedLightMap1Context.restore();
+    this.wallMaskedLightMap1Context.restore();
+
+    // Mask walls layer 2
+    this.wallMaskedLightMap2Context.save();
+    this.wallMaskedLightMap2Context.setTransform(1, 0, 0, 1, 0, 0);
+    this.wallMaskedLightMap2Context.globalCompositeOperation =
+      'destination-atop';
+    this.wallMaskedLightMap2Context.drawImage(this.wallMask2Canvas, 0, 0);
+    this.wallMaskedLightMap2Context.restore();
+    this.wallMaskedLightMap2Context.restore();
   }
 
   /**
@@ -198,9 +302,13 @@ export class LightingSystem {
   private prepareNonLightReceivingWallShadows(
     wallShadowReceivers: WallShadowReceiver[]
   ) {
-    this.wallMaskedLightMapContext.save();
-    this.wallMaskedLightMapContext.globalCompositeOperation = 'source-over';
-    this.wallMaskedLightMapContext.fillStyle = this.ambientLightColour;
+    this.wallMaskedLightMap1Context.save();
+    this.wallMaskedLightMap1Context.globalCompositeOperation = 'source-over';
+    this.wallMaskedLightMap1Context.fillStyle = this.ambientLightColour;
+
+    this.wallMaskedLightMap2Context.save();
+    this.wallMaskedLightMap2Context.globalCompositeOperation = 'source-over';
+    this.wallMaskedLightMap2Context.fillStyle = this.ambientLightColour;
 
     for (const wall of wallShadowReceivers) {
       const wallRectangle = {
@@ -209,16 +317,30 @@ export class LightingSystem {
       };
 
       if (!wall.receiveLight) {
-        this.wallMaskedLightMapContext.fillRect(
-          wallRectangle.position.x,
-          wallRectangle.position.y,
-          wallRectangle.size.x,
-          wallRectangle.size.y
-        );
+        switch (wall.layer) {
+          case WallShadowLayer.One:
+            this.wallMaskedLightMap1Context.fillRect(
+              wallRectangle.position.x,
+              wallRectangle.position.y,
+              wallRectangle.size.x,
+              wallRectangle.size.y
+            );
+            break;
+
+          case WallShadowLayer.Two:
+            this.wallMaskedLightMap2Context.fillRect(
+              wallRectangle.position.x,
+              wallRectangle.position.y,
+              wallRectangle.size.x,
+              wallRectangle.size.y
+            );
+            break;
+        }
       }
     }
 
-    this.wallMaskedLightMapContext.restore();
+    this.wallMaskedLightMap1Context.restore();
+    this.wallMaskedLightMap2Context.restore();
   }
 
   /**
@@ -229,7 +351,8 @@ export class LightingSystem {
 
     context.globalCompositeOperation = 'multiply';
     context.drawImage(this.groundMaskedLightMapCanvas, 0, 0);
-    context.drawImage(this.wallMaskedLightMapCanvas, 0, 0);
+    context.drawImage(this.wallMaskedLightMap1Canvas, 0, 0);
+    context.drawImage(this.wallMaskedLightMap2Canvas, 0, 0);
 
     context.restore();
   }

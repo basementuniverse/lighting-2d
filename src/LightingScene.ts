@@ -40,9 +40,11 @@ export class LightingScene {
     | 'nolighting'
     | 'normal'
     | 'groundmask'
-    | 'wallmask'
+    | 'wallmask1'
+    | 'wallmask2'
     | 'groundmaskedlightmap'
-    | 'wallmaskedlightmap'
+    | 'wallmaskedlightmap1'
+    | 'wallmaskedlightmap2'
     | 'lightmap' = 'normal';
 
   public showHelp: boolean = true;
@@ -56,7 +58,9 @@ export class LightingScene {
     });
     this.camera.positionImmediate = LightingScene.CAMERA_INITIAL_POSITION;
 
-    this.lightingSystem = new LightingSystem();
+    this.lightingSystem = new LightingSystem({
+      imageSmoothingEnabled: false,
+    });
     this.lightingSystem.initialise();
 
     Game.gui
@@ -76,9 +80,11 @@ export class LightingScene {
         'nolighting',
         'normal',
         'groundmask',
-        'wallmask',
+        'wallmask1',
+        'wallmask2',
         'groundmaskedlightmap',
-        'wallmaskedlightmap',
+        'wallmaskedlightmap1',
+        'wallmaskedlightmap2',
         'lightmap',
       ])
       .name('Mode');
@@ -197,7 +203,7 @@ export class LightingScene {
 
     this.lightingSystem.lights.forEach(light => light.destroy());
     this.lightingSystem.lights = state.lights.map((light: any) =>
-      Light.deserialise(this, light)
+      Light.deserialise(this, this.lightingSystem, light)
     );
   }
 
@@ -398,7 +404,7 @@ export class LightingScene {
       // Create Light
       if (InputManager.keyPressed('KeyL')) {
         this.lightingSystem.lights.push(
-          new Light(this, {
+          new Light(this, this.lightingSystem, {
             position: vec.cpy(mouseWorldPosition),
           })
         );
@@ -455,7 +461,7 @@ export class LightingScene {
 
         case 'Light':
           this.lightingSystem.lights.push(
-            Light.deserialise(this, {
+            Light.deserialise(this, this.lightingSystem, {
               ...exclude(this.selected.serialise(), 'id', 'position'),
               position: vec.cpy(mouseWorldPosition),
             })
@@ -509,6 +515,8 @@ export class LightingScene {
   }
 
   public draw(context: CanvasRenderingContext2D) {
+    context.imageSmoothingEnabled = false;
+
     switch (this.mode) {
       case 'nolighting':
         context.save();
@@ -548,7 +556,7 @@ export class LightingScene {
         context.drawImage(this.lightingSystem.groundMaskCanvas, 0, 0);
         break;
 
-      case 'wallmask':
+      case 'wallmask1':
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -557,7 +565,19 @@ export class LightingScene {
           this.spriteShadowCasters,
           this.circleShadowCasters
         );
-        context.drawImage(this.lightingSystem.wallMaskCanvas, 0, 0);
+        context.drawImage(this.lightingSystem.wallMask1Canvas, 0, 0);
+        break;
+
+      case 'wallmask2':
+        this.lightingSystem.prepare(
+          this.camera,
+          this.groundShadowReceivers,
+          this.wallShadowReceivers,
+          this.regionShadowCasters,
+          this.spriteShadowCasters,
+          this.circleShadowCasters
+        );
+        context.drawImage(this.lightingSystem.wallMask2Canvas, 0, 0);
         break;
 
       case 'groundmaskedlightmap':
@@ -572,7 +592,7 @@ export class LightingScene {
         context.drawImage(this.lightingSystem.groundMaskedLightMapCanvas, 0, 0);
         break;
 
-      case 'wallmaskedlightmap':
+      case 'wallmaskedlightmap1':
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -581,7 +601,19 @@ export class LightingScene {
           this.spriteShadowCasters,
           this.circleShadowCasters
         );
-        context.drawImage(this.lightingSystem.wallMaskedLightMapCanvas, 0, 0);
+        context.drawImage(this.lightingSystem.wallMaskedLightMap1Canvas, 0, 0);
+        break;
+
+      case 'wallmaskedlightmap2':
+        this.lightingSystem.prepare(
+          this.camera,
+          this.groundShadowReceivers,
+          this.wallShadowReceivers,
+          this.regionShadowCasters,
+          this.spriteShadowCasters,
+          this.circleShadowCasters
+        );
+        context.drawImage(this.lightingSystem.wallMaskedLightMap2Canvas, 0, 0);
         break;
 
       case 'lightmap':
@@ -594,7 +626,8 @@ export class LightingScene {
           this.circleShadowCasters
         );
         context.drawImage(this.lightingSystem.groundMaskedLightMapCanvas, 0, 0);
-        context.drawImage(this.lightingSystem.wallMaskedLightMapCanvas, 0, 0);
+        context.drawImage(this.lightingSystem.wallMaskedLightMap1Canvas, 0, 0);
+        context.drawImage(this.lightingSystem.wallMaskedLightMap2Canvas, 0, 0);
         break;
     }
 

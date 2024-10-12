@@ -6,6 +6,7 @@ import { vec } from '@basementuniverse/vec';
 import Game from './Game';
 import { Light } from './Light';
 import { LightingScene } from './LightingScene';
+import { LightingSystem } from './LightingSystem';
 import { RegionShadowCaster } from './RegionShadowCaster';
 import { Line, Rectangle, Sector2d } from './types';
 import {
@@ -51,10 +52,18 @@ export class TestScene {
       position: vec(350, 500),
       size: vec(100, 100),
     });
-    this.light = new Light(this as unknown as LightingScene, {
-      position: vec(300, 300),
-      radius: 10,
-    });
+    this.light = new Light(
+      this as unknown as LightingScene,
+      {
+        options: {
+          imageSmoothingEnabled: true,
+        },
+      } as unknown as LightingSystem,
+      {
+        position: vec(300, 300),
+        radius: 10,
+      }
+    );
   }
 
   public update(dt: number) {

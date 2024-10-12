@@ -5,6 +5,7 @@ import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
+import { WallShadowLayer } from './types';
 import {
   clampVec,
   maxVec,
@@ -16,8 +17,11 @@ import {
 export class WallShadowReceiver {
   private static readonly DEFAULT_SIZE = vec(64, 64);
   private static readonly DEFAULT_COLOUR = '#ddd';
+  private static readonly DEFAULT_RECEIVE_LIGHT = true;
   private static readonly DEFAULT_SPRITE_NAME = 'wall';
   private static readonly DEFAULT_MASK_NAME = 'wall-mask';
+  private static readonly DEFAULT_SPRITE_REPEAT = false;
+  private static readonly DEFAULT_LAYER = WallShadowLayer.One;
   private static readonly DEBUG_COLOUR = '#f83';
   private static readonly DEBUG_HOVER_COLOUR = '#fb4';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -32,10 +36,11 @@ export class WallShadowReceiver {
   public position: vec = vec();
   public size: vec = WallShadowReceiver.DEFAULT_SIZE;
   public colour: string = WallShadowReceiver.DEFAULT_COLOUR;
-  public receiveLight: boolean = true;
+  public receiveLight: boolean = WallShadowReceiver.DEFAULT_RECEIVE_LIGHT;
   public spriteName: string = WallShadowReceiver.DEFAULT_SPRITE_NAME;
   public maskName: string = WallShadowReceiver.DEFAULT_MASK_NAME;
-  public spriteRepeat: boolean = false;
+  public spriteRepeat: boolean = WallShadowReceiver.DEFAULT_SPRITE_REPEAT;
+  public layer: WallShadowLayer = WallShadowReceiver.DEFAULT_LAYER;
 
   public hovered = false;
   public selected = false;
@@ -76,6 +81,7 @@ export class WallShadowReceiver {
     this.folder.add(this, 'spriteName');
     this.folder.add(this, 'maskName');
     this.folder.add(this, 'spriteRepeat');
+    this.folder.add(this, 'layer', Object.values(WallShadowLayer));
   }
 
   public serialise(): any {
@@ -89,6 +95,7 @@ export class WallShadowReceiver {
       spriteName: this.spriteName,
       maskName: this.maskName,
       spriteRepeat: this.spriteRepeat,
+      layer: this.layer,
     };
   }
 

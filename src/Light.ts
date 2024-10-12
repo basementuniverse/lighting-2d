@@ -27,6 +27,7 @@ import {
   PolygonVertices,
   Rectangle,
   Sector2d,
+  WallShadowLayer,
 } from './types';
 import {
   colourToString,
@@ -91,6 +92,8 @@ export class Light {
   public readonly type = 'Light';
 
   private scene: LightingScene;
+  private lightingSystem: LightingSystem;
+
   public id: string = '';
   public folder: dat.GUI | null = null;
 
@@ -112,13 +115,21 @@ export class Light {
   public groundLightCanvas: HTMLCanvasElement;
   private groundLightContext: CanvasRenderingContext2D;
 
-  public wallLightCanvas: HTMLCanvasElement;
-  private wallLightContext: CanvasRenderingContext2D;
+  public wallLight1Canvas: HTMLCanvasElement;
+  private wallLight1Context: CanvasRenderingContext2D;
+
+  public wallLight2Canvas: HTMLCanvasElement;
+  private wallLight2Context: CanvasRenderingContext2D;
 
   private dirty = true;
 
-  public constructor(scene: LightingScene, data: Partial<Light> = {}) {
+  public constructor(
+    scene: LightingScene,
+    lightingSystem: LightingSystem,
+    data: Partial<Light> = {}
+  ) {
     this.scene = scene;
+    this.lightingSystem = lightingSystem;
 
     Object.assign(this, exclude(data, 'radius', 'colour', 'intensity'), {
       id: data.id ?? uuid().split('-')[0],
@@ -146,9 +157,15 @@ export class Light {
       this._radius * 2;
     this.groundLightContext = this.groundLightCanvas.getContext('2d')!;
 
-    this.wallLightCanvas = document.createElement('canvas');
-    this.wallLightCanvas.width = this.wallLightCanvas.height = this._radius * 2;
-    this.wallLightContext = this.wallLightCanvas.getContext('2d')!;
+    this.wallLight1Canvas = document.createElement('canvas');
+    this.wallLight1Canvas.width = this.wallLight1Canvas.height =
+      this._radius * 2;
+    this.wallLight1Context = this.wallLight1Canvas.getContext('2d')!;
+
+    this.wallLight2Canvas = document.createElement('canvas');
+    this.wallLight2Canvas.width = this.wallLight2Canvas.height =
+      this._radius * 2;
+    this.wallLight2Context = this.wallLight2Canvas.getContext('2d')!;
   }
 
   public get radius() {
@@ -191,8 +208,12 @@ export class Light {
     };
   }
 
-  public static deserialise(scene: LightingScene, data: any): Light {
-    return new Light(scene, data);
+  public static deserialise(
+    scene: LightingScene,
+    lightingSystem: LightingSystem,
+    data: any
+  ): Light {
+    return new Light(scene, lightingSystem, data);
   }
 
   public destroy() {
@@ -283,6 +304,8 @@ export class Light {
     // Render light onto ground light canvas
     this.groundLightCanvas.width = this.groundLightCanvas.height =
       this._radius * 2;
+    this.groundLightContext.imageSmoothingEnabled =
+      this.lightingSystem.options.imageSmoothingEnabled;
     this.groundLightContext.drawImage(this.lightCanvas, 0, 0);
 
     // Subtract shadows from ground lightmap
@@ -306,13 +329,31 @@ export class Light {
       );
     }
 
-    // Render light onto wall light canvas
-    this.wallLightCanvas.width = this.wallLightCanvas.height = this._radius * 2;
-    this.wallLightContext.drawImage(this.lightCanvas, 0, 0);
+    // Render light onto wall light canvases
+    this.wallLight1Canvas.width = this.wallLight1Canvas.height =
+      this._radius * 2;
+    this.wallLight1Context.imageSmoothingEnabled =
+      this.lightingSystem.options.imageSmoothingEnabled;
+    this.wallLight1Context.drawImage(this.lightCanvas, 0, 0);
+
+    this.wallLight2Canvas.width = this.wallLight2Canvas.height =
+      this._radius * 2;
+    this.wallLight2Context.imageSmoothingEnabled =
+      this.lightingSystem.options.imageSmoothingEnabled;
+    this.wallLight2Context.drawImage(this.lightCanvas, 0, 0);
 
     // Prepare full-wall shading based on whether the wall is above or below
     // the light position
-    this.prepareInitialShading(lightRectangle, wallShadowReceivers);
+    this.prepareInitialShading(
+      this.wallLight1Context,
+      lightRectangle,
+      wallShadowReceivers
+    );
+    this.prepareInitialShading(
+      this.wallLight2Context,
+      lightRectangle,
+      wallShadowReceivers
+    );
 
     // Subtract region shadows from wall lightmap
     if (this.castShadows) {
@@ -339,6 +380,8 @@ export class Light {
 
   private prepareLightMap() {
     this.lightCanvas.width = this.lightCanvas.height = this._radius * 2;
+    this.lightContext.imageSmoothingEnabled =
+      this.lightingSystem.options.imageSmoothingEnabled;
 
     this.lightContext.save();
     this.lightContext.fillStyle = 'black';
@@ -375,12 +418,12 @@ export class Light {
   }
 
   private prepareInitialShading(
+    context: CanvasRenderingContext2D,
     lightRectangle: Rectangle,
     wallShadowReceivers: WallShadowReceiver[]
   ) {
-    this.wallLightContext.save();
-    this.wallLightContext.fillStyle = 'black';
-    this.wallLightContext.translate(
+    context.save();
+    context.translate(
       -this.position.x + this._radius,
       -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
@@ -402,8 +445,8 @@ export class Light {
 
         // The wall is only lit by this light if it's above the light
         if (this.position.y < wallInterval.bottom) {
-          this.wallLightContext.save();
-          this.wallLightContext.globalAlpha = clamp(
+          context.save();
+          context.globalAlpha = clamp(
             remap(
               wallInterval.bottom - this.position.y,
               0,
@@ -414,17 +457,12 @@ export class Light {
             0,
             1
           );
-          this.wallLightContext.fillRect(
-            wallRectangle.position.x,
-            wallRectangle.position.y,
-            wallRectangle.size.x,
-            wallRectangle.size.y
-          );
-          this.wallLightContext.restore();
+          wall.drawMask(context);
+          context.restore();
         }
       }
     }
-    this.wallLightContext.restore();
+    context.restore();
   }
 
   private prepareGroundRegionShadows(
@@ -627,9 +665,16 @@ export class Light {
     regionShadowCasters: RegionShadowCaster[],
     wallShadowReceivers: WallShadowReceiver[]
   ) {
-    this.wallLightContext.save();
-    this.wallLightContext.fillStyle = 'black';
-    this.wallLightContext.translate(
+    this.wallLight1Context.save();
+    this.wallLight1Context.fillStyle = 'black';
+    this.wallLight1Context.translate(
+      -this.position.x + this._radius,
+      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+    );
+
+    this.wallLight2Context.save();
+    this.wallLight2Context.fillStyle = 'black';
+    this.wallLight2Context.translate(
       -this.position.x + this._radius,
       -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
@@ -805,17 +850,23 @@ export class Light {
               }
             )
           ) {
-            this.wallLightContext.fillRect(
-              min,
-              wallInterval.top,
-              max - min,
-              wall.size.y
-            );
+            let context: CanvasRenderingContext2D;
+            switch (wall.layer) {
+              case WallShadowLayer.One:
+                context = this.wallLight1Context;
+                break;
+
+              case WallShadowLayer.Two:
+                context = this.wallLight2Context;
+                break;
+            }
+            context.fillRect(min, wallInterval.top, max - min, wall.size.y);
           }
         }
       }
     }
-    this.wallLightContext.restore();
+    this.wallLight1Context.restore();
+    this.wallLight2Context.restore();
   }
 
   private prepareWallSpriteShadows(
@@ -823,8 +874,14 @@ export class Light {
     spriteShadows: Shadow<SpriteShadowCaster>[],
     wallShadowReceivers: WallShadowReceiver[]
   ) {
-    this.wallLightContext.save();
-    this.wallLightContext.translate(
+    this.wallLight1Context.save();
+    this.wallLight1Context.translate(
+      -this.position.x + this._radius,
+      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+    );
+
+    this.wallLight2Context.save();
+    this.wallLight2Context.translate(
       -this.position.x + this._radius,
       -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
@@ -977,16 +1034,27 @@ export class Light {
           const destinationHeight =
             l * (1 - t) * Light.SPRITE_WALL_SHADOW_LENGTH_COEFFICIENT;
 
-          this.wallLightContext.save();
-          this.wallLightContext.beginPath();
-          this.wallLightContext.rect(
+          let context: CanvasRenderingContext2D;
+          switch (wall.layer) {
+            case WallShadowLayer.One:
+              context = this.wallLight1Context;
+              break;
+
+            case WallShadowLayer.Two:
+              context = this.wallLight2Context;
+              break;
+          }
+
+          context.save();
+          context.beginPath();
+          context.rect(
             wallRectangle.position.x,
             wallRectangle.position.y,
             wallRectangle.size.x,
             wallRectangle.size.y
           );
-          this.wallLightContext.clip();
-          this.wallLightContext.drawImage(
+          context.clip();
+          context.drawImage(
             shadowSprite,
             0,
             0,
@@ -997,12 +1065,13 @@ export class Light {
             rightIntercept[INTERCEPT_X] - leftIntercept[INTERCEPT_X],
             destinationHeight
           );
-          this.wallLightContext.restore();
+          context.restore();
         }
       }
     }
 
-    this.wallLightContext.restore();
+    this.wallLight1Context.restore();
+    this.wallLight2Context.restore();
   }
 
   private prepareWallCircleShadows(
@@ -1010,9 +1079,16 @@ export class Light {
     circleShadows: Shadow<CircleShadowCaster>[],
     wallShadowReceivers: WallShadowReceiver[]
   ) {
-    this.wallLightContext.save();
-    this.wallLightContext.fillStyle = 'black';
-    this.wallLightContext.translate(
+    this.wallLight1Context.save();
+    this.wallLight1Context.fillStyle = 'black';
+    this.wallLight1Context.translate(
+      -this.position.x + this._radius,
+      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+    );
+
+    this.wallLight2Context.save();
+    this.wallLight2Context.fillStyle = 'black';
+    this.wallLight2Context.translate(
       -this.position.x + this._radius,
       -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
     );
@@ -1070,17 +1146,28 @@ export class Light {
             continue;
           }
 
-          this.wallLightContext.save();
-          this.wallLightContext.beginPath();
-          this.wallLightContext.rect(
+          let context: CanvasRenderingContext2D;
+          switch (wall.layer) {
+            case WallShadowLayer.One:
+              context = this.wallLight1Context;
+              break;
+
+            case WallShadowLayer.Two:
+              context = this.wallLight2Context;
+              break;
+          }
+
+          context.save();
+          context.beginPath();
+          context.rect(
             wallRectangle.position.x,
             wallRectangle.position.y,
             wallRectangle.size.x,
             wallRectangle.size.y
           );
-          this.wallLightContext.clip();
-          this.wallLightContext.beginPath();
-          this.wallLightContext.ellipse(
+          context.clip();
+          context.beginPath();
+          context.ellipse(
             shadow.position.x,
             shadow.position.y,
             shadow.size.x,
@@ -1089,14 +1176,15 @@ export class Light {
             0,
             Math.PI * 2
           );
-          this.wallLightContext.globalAlpha = shadow.caster.alpha;
-          this.wallLightContext.fill();
-          this.wallLightContext.restore();
+          context.globalAlpha = shadow.caster.alpha;
+          context.fill();
+          context.restore();
         }
       }
     }
 
-    this.wallLightContext.restore();
+    this.wallLight1Context.restore();
+    this.wallLight2Context.restore();
   }
 
   private prepareRegionShadow(
