@@ -29,14 +29,14 @@ export class LightingSystem {
   public groundMaskCanvas: HTMLCanvasElement;
   private groundMaskContext: CanvasRenderingContext2D;
 
+  public groundMaskedLightMapCanvas: HTMLCanvasElement;
+  private groundMaskedLightMapContext: CanvasRenderingContext2D;
+
   public wallMaskCanvas: HTMLCanvasElement;
   private wallMaskContext: CanvasRenderingContext2D;
 
   public wallMaskedLightMapCanvas: HTMLCanvasElement;
   private wallMaskedLightMapContext: CanvasRenderingContext2D;
-
-  public groundMaskedLightMapCanvas: HTMLCanvasElement;
-  private groundMaskedLightMapContext: CanvasRenderingContext2D;
 
   /**
    * Initialise lighting system canvases
@@ -46,6 +46,12 @@ export class LightingSystem {
     this.groundMaskCanvas.width = Game.screen.x;
     this.groundMaskCanvas.height = Game.screen.y;
     this.groundMaskContext = this.groundMaskCanvas.getContext('2d')!;
+
+    this.groundMaskedLightMapCanvas = document.createElement('canvas');
+    this.groundMaskedLightMapCanvas.width = Game.screen.x;
+    this.groundMaskedLightMapCanvas.height = Game.screen.y;
+    this.groundMaskedLightMapContext =
+      this.groundMaskedLightMapCanvas.getContext('2d')!;
 
     this.wallMaskCanvas = document.createElement('canvas');
     this.wallMaskCanvas.width = Game.screen.x;
@@ -57,12 +63,6 @@ export class LightingSystem {
     this.wallMaskedLightMapCanvas.height = Game.screen.y;
     this.wallMaskedLightMapContext =
       this.wallMaskedLightMapCanvas.getContext('2d')!;
-
-    this.groundMaskedLightMapCanvas = document.createElement('canvas');
-    this.groundMaskedLightMapCanvas.width = Game.screen.x;
-    this.groundMaskedLightMapCanvas.height = Game.screen.y;
-    this.groundMaskedLightMapContext =
-      this.groundMaskedLightMapCanvas.getContext('2d')!;
   }
 
   /**

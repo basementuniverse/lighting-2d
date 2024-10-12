@@ -216,6 +216,7 @@ export class TestScene {
     // -------------------------------------------------------------------------
     // #region
     const SHADOW_BUFFER = 20;
+    const INCLUDE_CASTER_REGION = true;
     const lightPosition = this.light.position;
     const lightRadius = this.light.radius;
     const wallPosition = this.caster.position;
@@ -329,7 +330,7 @@ export class TestScene {
       }
       context.lineWidth = 2;
       this.line(context, line.start, line.end);
-      // Debug.marker(`line_${i}`, '', line.end);
+      Debug.marker(`line_${i}`, '', line.end);
       context.stroke();
     }
 
@@ -347,17 +348,29 @@ export class TestScene {
           break;
         }
 
-        leftEdge = null;
-        rightEdge = null;
-        polygon(
-          context,
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
-          shadowEdges[3].end,
-          shadowEdges[3].start,
-          shadowEdges[2].start
-        );
+        leftEdge = shadowEdges[0];
+        rightEdge = shadowEdges[3];
+        if (INCLUDE_CASTER_REGION) {
+          polygon(
+            context,
+            this.caster.position,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start
+          );
+        } else {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            shadowEdges[2].start
+          );
+        }
         break;
 
       case Sector2d.Top:
@@ -365,26 +378,45 @@ export class TestScene {
           break;
         }
 
-        leftEdge = null;
-        rightEdge = null;
-        polygon(
-          context,
-          shadowEdges[2].start,
-          shadowEdges[2].end,
-          (context: CanvasRenderingContext2D) => {
-            context.arc(
-              lightPosition.x,
-              lightPosition.y,
-              lightRadius + SHADOW_BUFFER,
-              vec.rad(vec.sub(shadowEdges[2].end, shadowEdges[2].start)),
-              vec.rad(vec.sub(shadowEdges[1].end, shadowEdges[1].start)),
-              false
-            );
-          },
-          shadowEdges[1].start,
-          shadowEdges[5].start,
-          shadowEdges[4].start
-        );
+        leftEdge = shadowEdges[2];
+        rightEdge = shadowEdges[1];
+        if (INCLUDE_CASTER_REGION) {
+          polygon(
+            context,
+            shadowEdges[1].start,
+            shadowEdges[2].start,
+            shadowEdges[2].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[2].end, shadowEdges[2].start)),
+                vec.rad(vec.sub(shadowEdges[1].end, shadowEdges[1].start)),
+                false
+              );
+            }
+          );
+        } else {
+          polygon(
+            context,
+            shadowEdges[2].start,
+            shadowEdges[2].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[2].end, shadowEdges[2].start)),
+                vec.rad(vec.sub(shadowEdges[1].end, shadowEdges[1].start)),
+                false
+              );
+            },
+            shadowEdges[1].start,
+            shadowEdges[5].start,
+            shadowEdges[4].start
+          );
+        }
         break;
 
       case Sector2d.TopRight:
@@ -392,17 +424,32 @@ export class TestScene {
           break;
         }
 
-        leftEdge = null;
-        rightEdge = null;
-        polygon(
-          context,
-          shadowEdges[2].start,
-          shadowEdges[2].end,
-          vec(shadowEdges[1].end.x, shadowEdges[2].end.y),
-          shadowEdges[1].end,
-          shadowEdges[1].start,
-          shadowEdges[3].start
-        );
+        leftEdge = shadowEdges[2];
+        rightEdge = shadowEdges[1];
+        if (INCLUDE_CASTER_REGION) {
+          polygon(
+            context,
+            shadowEdges[1].start,
+            vec(
+              this.caster.position.x + this.caster.size.x,
+              this.caster.position.y
+            ),
+            shadowEdges[2].start,
+            shadowEdges[2].end,
+            vec(shadowEdges[1].end.x, shadowEdges[2].end.y),
+            shadowEdges[1].end
+          );
+        } else {
+          polygon(
+            context,
+            shadowEdges[2].start,
+            shadowEdges[2].end,
+            vec(shadowEdges[1].end.x, shadowEdges[2].end.y),
+            shadowEdges[1].end,
+            shadowEdges[1].start,
+            shadowEdges[3].start
+          );
+        }
         break;
 
       case Sector2d.Left:
@@ -411,25 +458,44 @@ export class TestScene {
         }
 
         leftEdge = shadowEdges[0];
-        rightEdge = null;
-        polygon(
-          context,
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          (context: CanvasRenderingContext2D) => {
-            context.arc(
-              lightPosition.x,
-              lightPosition.y,
-              lightRadius + SHADOW_BUFFER,
-              vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
-              vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
-              false
-            );
-          },
-          shadowEdges[5].start,
-          shadowEdges[4].start,
-          shadowEdges[2].start
-        );
+        rightEdge = shadowEdges[5];
+        if (INCLUDE_CASTER_REGION) {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
+                vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
+                false
+              );
+            },
+            shadowEdges[5].start
+          );
+        } else {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
+                vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
+                false
+              );
+            },
+            shadowEdges[5].start,
+            shadowEdges[4].start,
+            shadowEdges[2].start
+          );
+        }
         break;
 
       case Sector2d.Inside:
@@ -440,26 +506,45 @@ export class TestScene {
           break;
         }
 
-        leftEdge = null;
+        leftEdge = shadowEdges[4];
         rightEdge = shadowEdges[3];
-        polygon(
-          context,
-          shadowEdges[4].start,
-          shadowEdges[4].end,
-          (context: CanvasRenderingContext2D) => {
-            context.arc(
-              lightPosition.x,
-              lightPosition.y,
-              lightRadius + SHADOW_BUFFER,
-              vec.rad(vec.sub(shadowEdges[4].end, shadowEdges[4].start)),
-              vec.rad(vec.sub(shadowEdges[3].end, shadowEdges[3].start)),
-              false
-            );
-          },
-          shadowEdges[3].start,
-          shadowEdges[2].start,
-          shadowEdges[5].start
-        );
+        if (INCLUDE_CASTER_REGION) {
+          polygon(
+            context,
+            shadowEdges[3].start,
+            shadowEdges[4].start,
+            shadowEdges[4].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[4].end, shadowEdges[4].start)),
+                vec.rad(vec.sub(shadowEdges[3].end, shadowEdges[3].start)),
+                false
+              );
+            }
+          );
+        } else {
+          polygon(
+            context,
+            shadowEdges[4].start,
+            shadowEdges[4].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[4].end, shadowEdges[4].start)),
+                vec.rad(vec.sub(shadowEdges[3].end, shadowEdges[3].start)),
+                false
+              );
+            },
+            shadowEdges[3].start,
+            shadowEdges[2].start,
+            shadowEdges[5].start
+          );
+        }
         break;
 
       case Sector2d.BottomLeft:
@@ -469,15 +554,30 @@ export class TestScene {
 
         leftEdge = shadowEdges[0];
         rightEdge = shadowEdges[3];
-        polygon(
-          context,
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          vec(shadowEdges[3].end.x, shadowEdges[0].end.y),
-          shadowEdges[3].end,
-          shadowEdges[3].start,
-          shadowEdges[2].start
-        );
+        if (INCLUDE_CASTER_REGION) {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[3].end.x, shadowEdges[0].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            vec(
+              this.caster.position.x,
+              this.caster.position.y + this.caster.size.y
+            )
+          );
+        } else {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[3].end.x, shadowEdges[0].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            shadowEdges[2].start
+          );
+        }
         break;
 
       case Sector2d.Bottom:
@@ -487,24 +587,43 @@ export class TestScene {
 
         leftEdge = shadowEdges[0];
         rightEdge = shadowEdges[5];
-        polygon(
-          context,
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          (context: CanvasRenderingContext2D) => {
-            context.arc(
-              lightPosition.x,
-              lightPosition.y,
-              lightRadius + SHADOW_BUFFER,
-              vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
-              vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
-              false
-            );
-          },
-          shadowEdges[5].start,
-          shadowEdges[4].start,
-          shadowEdges[2].start
-        );
+        if (INCLUDE_CASTER_REGION) {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
+                vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
+                false
+              );
+            },
+            shadowEdges[5].start
+          );
+        } else {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
+                vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
+                false
+              );
+            },
+            shadowEdges[5].start,
+            shadowEdges[4].start,
+            shadowEdges[2].start
+          );
+        }
         break;
 
       case Sector2d.BottomRight:
@@ -514,15 +633,27 @@ export class TestScene {
 
         leftEdge = shadowEdges[0];
         rightEdge = shadowEdges[3];
-        polygon(
-          context,
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
-          shadowEdges[3].end,
-          shadowEdges[3].start,
-          shadowEdges[2].start
-        );
+        if (INCLUDE_CASTER_REGION) {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            vec.add(this.caster.position, this.caster.size)
+          );
+        } else {
+          polygon(
+            context,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            shadowEdges[2].start
+          );
+        }
         break;
     }
     context.fillStyle = 'rgba(255, 255, 0, 0.5)';
@@ -578,8 +709,18 @@ export class TestScene {
         show = false;
       }
 
-      // caster = shadow caster
-      // receiver = shadow receiver
+      if (
+        leftEdge &&
+        leftEdge.start.y <= leftEdge.end.y &&
+        rightEdge &&
+        rightEdge.start.y <= rightEdge.end.y
+      ) {
+        show = false;
+      }
+
+      if (receiverInterval.bottom > casterInterval.bottom) {
+        show = false;
+      }
 
       // shadow caster is partially above and below shadow receiver
       // edge case: shadow is pointing away from shadow receiver but the

@@ -1096,7 +1096,10 @@ export class Light {
     this.wallLightContext.restore();
   }
 
-  private prepareRegionShadow(shadowCasterRectangle: Rectangle): {
+  private prepareRegionShadow(
+    shadowCasterRectangle: Rectangle,
+    includeCasterRegion: boolean = false
+  ): {
     shadowCasterInterval: Interval2d;
     leftEdge: Line | null;
     rightEdge: Line | null;
@@ -1157,14 +1160,25 @@ export class Light {
 
         leftEdge = shadowEdges[0];
         rightEdge = shadowEdges[3];
-        shadowPolygon.push(
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
-          shadowEdges[3].end,
-          shadowEdges[3].start,
-          shadowEdges[2].start
-        );
+        if (includeCasterRegion) {
+          shadowPolygon.push(
+            shadowCasterRectangle.position,
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start
+          );
+        } else {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            shadowEdges[2].start
+          );
+        }
         break;
 
       case Sector2d.Top:
@@ -1174,23 +1188,41 @@ export class Light {
 
         leftEdge = shadowEdges[2];
         rightEdge = shadowEdges[1];
-        shadowPolygon.push(
-          shadowEdges[2].start,
-          shadowEdges[2].end,
-          (context: CanvasRenderingContext2D) => {
-            context.arc(
-              lightPosition.x,
-              lightPosition.y,
-              lightRadius + Light.SHADOW_BUFFER,
-              vec.rad(vec.sub(shadowEdges[2].end, shadowEdges[2].start)),
-              vec.rad(vec.sub(shadowEdges[1].end, shadowEdges[1].start)),
-              false
-            );
-          },
-          shadowEdges[1].start,
-          shadowEdges[5].start,
-          shadowEdges[4].start
-        );
+        if (includeCasterRegion) {
+          shadowPolygon.push(
+            shadowEdges[1].start,
+            shadowEdges[2].start,
+            shadowEdges[2].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + Light.SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[2].end, shadowEdges[2].start)),
+                vec.rad(vec.sub(shadowEdges[1].end, shadowEdges[1].start)),
+                false
+              );
+            }
+          );
+        } else {
+          shadowPolygon.push(
+            shadowEdges[2].start,
+            shadowEdges[2].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + Light.SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[2].end, shadowEdges[2].start)),
+                vec.rad(vec.sub(shadowEdges[1].end, shadowEdges[1].start)),
+                false
+              );
+            },
+            shadowEdges[1].start,
+            shadowEdges[5].start,
+            shadowEdges[4].start
+          );
+        }
         break;
 
       case Sector2d.TopRight:
@@ -1200,14 +1232,28 @@ export class Light {
 
         leftEdge = shadowEdges[2];
         rightEdge = shadowEdges[1];
-        shadowPolygon.push(
-          shadowEdges[2].start,
-          shadowEdges[2].end,
-          vec(shadowEdges[1].end.x, shadowEdges[2].end.y),
-          shadowEdges[1].end,
-          shadowEdges[1].start,
-          shadowEdges[3].start
-        );
+        if (includeCasterRegion) {
+          shadowPolygon.push(
+            shadowEdges[1].start,
+            vec(
+              shadowCasterRectangle.position.x + shadowCasterRectangle.size.x,
+              shadowCasterRectangle.position.y
+            ),
+            shadowEdges[2].start,
+            shadowEdges[2].end,
+            vec(shadowEdges[1].end.x, shadowEdges[2].end.y),
+            shadowEdges[1].end
+          );
+        } else {
+          shadowPolygon.push(
+            shadowEdges[2].start,
+            shadowEdges[2].end,
+            vec(shadowEdges[1].end.x, shadowEdges[2].end.y),
+            shadowEdges[1].end,
+            shadowEdges[1].start,
+            shadowEdges[3].start
+          );
+        }
         break;
 
       case Sector2d.Left:
@@ -1217,23 +1263,41 @@ export class Light {
 
         leftEdge = shadowEdges[0];
         rightEdge = shadowEdges[5];
-        shadowPolygon.push(
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          (context: CanvasRenderingContext2D) => {
-            context.arc(
-              lightPosition.x,
-              lightPosition.y,
-              lightRadius + Light.SHADOW_BUFFER,
-              vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
-              vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
-              false
-            );
-          },
-          shadowEdges[5].start,
-          shadowEdges[4].start,
-          shadowEdges[2].start
-        );
+        if (includeCasterRegion) {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + Light.SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
+                vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
+                false
+              );
+            },
+            shadowEdges[5].start
+          );
+        } else {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + Light.SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
+                vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
+                false
+              );
+            },
+            shadowEdges[5].start,
+            shadowEdges[4].start,
+            shadowEdges[2].start
+          );
+        }
         break;
 
       case Sector2d.Inside:
@@ -1246,23 +1310,41 @@ export class Light {
 
         leftEdge = shadowEdges[4];
         rightEdge = shadowEdges[3];
-        shadowPolygon.push(
-          shadowEdges[4].start,
-          shadowEdges[4].end,
-          (context: CanvasRenderingContext2D) => {
-            context.arc(
-              lightPosition.x,
-              lightPosition.y,
-              lightRadius + Light.SHADOW_BUFFER,
-              vec.rad(vec.sub(shadowEdges[4].end, shadowEdges[4].start)),
-              vec.rad(vec.sub(shadowEdges[3].end, shadowEdges[3].start)),
-              false
-            );
-          },
-          shadowEdges[3].start,
-          shadowEdges[2].start,
-          shadowEdges[5].start
-        );
+        if (includeCasterRegion) {
+          shadowPolygon.push(
+            shadowEdges[3].start,
+            shadowEdges[4].start,
+            shadowEdges[4].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + Light.SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[4].end, shadowEdges[4].start)),
+                vec.rad(vec.sub(shadowEdges[3].end, shadowEdges[3].start)),
+                false
+              );
+            }
+          );
+        } else {
+          shadowPolygon.push(
+            shadowEdges[4].start,
+            shadowEdges[4].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + Light.SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[4].end, shadowEdges[4].start)),
+                vec.rad(vec.sub(shadowEdges[3].end, shadowEdges[3].start)),
+                false
+              );
+            },
+            shadowEdges[3].start,
+            shadowEdges[2].start,
+            shadowEdges[5].start
+          );
+        }
         break;
 
       case Sector2d.BottomLeft:
@@ -1272,14 +1354,28 @@ export class Light {
 
         leftEdge = shadowEdges[0];
         rightEdge = shadowEdges[3];
-        shadowPolygon.push(
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          vec(shadowEdges[3].end.x, shadowEdges[0].end.y),
-          shadowEdges[3].end,
-          shadowEdges[3].start,
-          shadowEdges[2].start
-        );
+        if (includeCasterRegion) {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[3].end.x, shadowEdges[0].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            vec(
+              shadowCasterRectangle.position.x,
+              shadowCasterRectangle.position.y + shadowCasterRectangle.size.y
+            )
+          );
+        } else {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[3].end.x, shadowEdges[0].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            shadowEdges[2].start
+          );
+        }
         break;
 
       case Sector2d.Bottom:
@@ -1289,23 +1385,41 @@ export class Light {
 
         leftEdge = shadowEdges[0];
         rightEdge = shadowEdges[5];
-        shadowPolygon.push(
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          (context: CanvasRenderingContext2D) => {
-            context.arc(
-              lightPosition.x,
-              lightPosition.y,
-              lightRadius + Light.SHADOW_BUFFER,
-              vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
-              vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
-              false
-            );
-          },
-          shadowEdges[5].start,
-          shadowEdges[4].start,
-          shadowEdges[2].start
-        );
+        if (includeCasterRegion) {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + Light.SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
+                vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
+                false
+              );
+            },
+            shadowEdges[5].start
+          );
+        } else {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            (context: CanvasRenderingContext2D) => {
+              context.arc(
+                lightPosition.x,
+                lightPosition.y,
+                lightRadius + Light.SHADOW_BUFFER,
+                vec.rad(vec.sub(shadowEdges[0].end, shadowEdges[0].start)),
+                vec.rad(vec.sub(shadowEdges[5].end, shadowEdges[5].start)),
+                false
+              );
+            },
+            shadowEdges[5].start,
+            shadowEdges[4].start,
+            shadowEdges[2].start
+          );
+        }
         break;
 
       case Sector2d.BottomRight:
@@ -1315,14 +1429,25 @@ export class Light {
 
         leftEdge = shadowEdges[0];
         rightEdge = shadowEdges[3];
-        shadowPolygon.push(
-          shadowEdges[0].start,
-          shadowEdges[0].end,
-          vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
-          shadowEdges[3].end,
-          shadowEdges[3].start,
-          shadowEdges[2].start
-        );
+        if (includeCasterRegion) {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            vec.add(shadowCasterRectangle.position, shadowCasterRectangle.size)
+          );
+        } else {
+          shadowPolygon.push(
+            shadowEdges[0].start,
+            shadowEdges[0].end,
+            vec(shadowEdges[0].end.x, shadowEdges[3].end.y),
+            shadowEdges[3].end,
+            shadowEdges[3].start,
+            shadowEdges[2].start
+          );
+        }
         break;
     }
 
