@@ -45,6 +45,8 @@ export class LightingScene {
     | 'wallmaskedlightmap'
     | 'lightmap' = 'normal';
 
+  public showHelp: boolean = true;
+
   public initialise() {
     this.camera = new Camera(vec(), {
       minScale: 0.5,
@@ -213,32 +215,37 @@ export class LightingScene {
       InputManager.mousePosition
     );
 
-    Debug.value(
-      'Mouse world position',
-      vec.str(vec.map(mouseWorldPosition, v => v.toFixed(2)))
-    );
-    Debug.value(
-      'Camera position',
-      vec.str(vec.map(this.camera.position, v => v.toFixed(2)))
-    );
-    Debug.value('Camera scale', this.camera.scale.toFixed(2));
-    Debug.value(
-      'Camera bounds',
-      `top=${Math.floor(cameraBounds.top)} left=${Math.floor(
-        cameraBounds.left
-      )} bottom=${Math.floor(cameraBounds.bottom)} right=${Math.floor(
-        cameraBounds.right
-      )}`
-    );
-    Debug.value('Press SHIFT-L to create a new Light', '');
-    Debug.value('Press SHIFT-G to create a new GroundShadowReceiver', '');
-    Debug.value('Press SHIFT-W to create a new WallShadowReceiver', '');
-    Debug.value('Press SHIFT-R to create a new RegionShadowCaster', '');
-    Debug.value('Press SHIFT-S to create a new SpriteShadowCaster', '');
-    Debug.value('Press SHIFT-C to create a new CircleShadowCaster', '');
-    Debug.value('Press D to duplicate selected', '');
-    Debug.value('CTRL-drag to resize', '');
-    Debug.value('Hold SHIFT while moving or resizing to snap to grid', '');
+    if (this.showHelp) {
+      Debug.value(
+        'Mouse world position',
+        vec.str(vec.map(mouseWorldPosition, v => v.toFixed(2)))
+      );
+      Debug.value(
+        'Camera position',
+        vec.str(vec.map(this.camera.position, v => v.toFixed(2)))
+      );
+      Debug.value('Camera scale', this.camera.scale.toFixed(2));
+      Debug.value(
+        'Camera bounds',
+        `top=${Math.floor(cameraBounds.top)} left=${Math.floor(
+          cameraBounds.left
+        )} bottom=${Math.floor(cameraBounds.bottom)} right=${Math.floor(
+          cameraBounds.right
+        )}`
+      );
+      Debug.value('Selected', this.selected ? this.selected.id : 'none');
+      Debug.value('Press SHIFT-L to create a new Light', '');
+      Debug.value('Press SHIFT-G to create a new GroundShadowReceiver', '');
+      Debug.value('Press SHIFT-W to create a new WallShadowReceiver', '');
+      Debug.value('Press SHIFT-R to create a new RegionShadowCaster', '');
+      Debug.value('Press SHIFT-S to create a new SpriteShadowCaster', '');
+      Debug.value('Press SHIFT-C to create a new CircleShadowCaster', '');
+      Debug.value('Press D to duplicate selected', '');
+      Debug.value('CTRL-drag to resize', '');
+      Debug.value('Hold SHIFT to snap to grid', '');
+    } else {
+      Debug.value('Press H to show help', '');
+    }
 
     // Handle camera move
     const cameraMoveVector = vec();
@@ -287,6 +294,11 @@ export class LightingScene {
     this.wallShadowReceivers = this.wallShadowReceivers.sort(
       (a, b) => a.position.y + a.size.y - (b.position.y + b.size.y)
     );
+
+    // Handle help toggle
+    if (InputManager.keyPressed('KeyH')) {
+      this.showHelp = !this.showHelp;
+    }
 
     // Handle item select
     if (InputManager.mousePressed()) {

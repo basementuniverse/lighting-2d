@@ -450,7 +450,10 @@ export class Light {
       if (rectanglesIntersect(lightRectangle, casterRectangle)) {
         const shadow = {
           caster,
-          ...this.prepareRegionShadow(casterRectangle),
+          ...this.prepareRegionShadow(
+            casterRectangle,
+            caster.includeRegionShadow
+          ),
         };
 
         // Save shadow metadata for use later when rendering wall shadows

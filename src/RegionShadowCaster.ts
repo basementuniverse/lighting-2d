@@ -16,6 +16,7 @@ import {
 
 export class RegionShadowCaster implements ShadowCaster {
   private static readonly DEFAULT_SIZE = vec(64, 64);
+  private static readonly DEFAULT_INCLUDE_REGION_SHADOW = false;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -29,6 +30,8 @@ export class RegionShadowCaster implements ShadowCaster {
 
   public position: vec = vec();
   public size: vec = RegionShadowCaster.DEFAULT_SIZE;
+  public includeRegionShadow: boolean =
+    RegionShadowCaster.DEFAULT_INCLUDE_REGION_SHADOW;
 
   public hovered = false;
   public selected = false;
@@ -64,6 +67,7 @@ export class RegionShadowCaster implements ShadowCaster {
         RegionShadowCaster.MAX_SIZE.y
       )
       .name('height');
+    this.folder.add(this, 'includeRegionShadow');
   }
 
   public serialise(): any {
