@@ -266,10 +266,7 @@ export class Light {
       space: 'world',
       showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
-      markerColour:
-        this.hovered || this.dragging
-          ? Light.DEBUG_HOVER_COLOUR
-          : Light.DEBUG_COLOUR,
+      markerImage: LightingScene.SPRITES['light'],
     });
   }
 
@@ -531,7 +528,7 @@ export class Light {
         );
         const shadowLength = smoothstep(
           caster.minShadowLength,
-          caster.maxShadowLength,
+          caster.maxShadowLength ?? this.radius,
           unlerp(0, this.radius, vec.len(vec.sub(shadowOrigin, this.position)))
         );
         const shadowEdge = vec.mul(

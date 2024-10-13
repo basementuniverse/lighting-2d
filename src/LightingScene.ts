@@ -170,6 +170,7 @@ export class LightingScene {
       })
       .listen();
 
+    this.loadImage('../images/light.png', 'light');
     this.loadImage('../images/test-shadow.png', 'test-shadow');
     this.loadImage('../images/character.png', 'character');
     this.loadImage('../images/character-mask.png', 'character-mask');

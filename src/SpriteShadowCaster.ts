@@ -31,7 +31,8 @@ export class SpriteShadowCaster implements ShadowCaster {
   public anchor: vec = SpriteShadowCaster.DEFAULT_ANCHOR;
   public offset: vec = SpriteShadowCaster.DEFAULT_OFFSET;
   public minShadowLength: number = SpriteShadowCaster.DEFAULT_MIN_SHADOW_LENGTH;
-  public maxShadowLength: number = SpriteShadowCaster.DEFAULT_MAX_SHADOW_LENGTH;
+  public maxShadowLength: number | null =
+    SpriteShadowCaster.DEFAULT_MAX_SHADOW_LENGTH;
 
   public hovered = false;
   public selected = false;
