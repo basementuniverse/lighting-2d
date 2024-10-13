@@ -34,6 +34,8 @@ npm run start
 
 5. Open your browser and navigate to `http://localhost:8080`
 
+6. To view the sample scene (the one in the preview image), click "Import state from JSON" (in the menu, top-right) and paste in the contents of `samples/sample-scene-1.json`
+
 ## How to integrate it
 
 A scene consists of shadow casters, shadow receivers, and lights.
