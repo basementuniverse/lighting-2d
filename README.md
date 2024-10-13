@@ -275,5 +275,5 @@ As long as shadows aren't too large and we don't have too many objects overlappi
 ## Plans
 
 - [ ] convert this into an NPM package that can be dropped into any game project
-- [ ] soft shadows using `shadowBlur` (maybe? this might be too slow)
+- [x] soft shadows using `shadowBlur` (maybe? this might be too slow)
 - [ ] each light could generate a normal map, meaning we could use a shader for bump mapping, specular highlights, etc.

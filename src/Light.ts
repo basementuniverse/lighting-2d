@@ -84,10 +84,6 @@ export class Light {
   private static readonly MIN_RADIUS = 10;
   private static readonly MAX_RADIUS = 400;
   private static readonly SHADOW_BUFFER = 20;
-  private static readonly WALL_LIGHT_CUTOFF_DISTANCE = 20;
-  private static readonly SPRITE_WALL_SHADOW_LENGTH_COEFFICIENT = 0.75;
-  private static readonly SPRITE_SHADOW_INTERCEPT_OFFSET = 0.1;
-  private static readonly CIRCLE_WALL_SHADOW_HEIGHT_COEFFICIENT = 0.5;
 
   public readonly type = 'Light';
 
@@ -293,19 +289,17 @@ export class Light {
     const lightRectangle = {
       position: vec.add(
         vec.sub(this.position, vec(this._radius)),
-        vec(0, LightingSystem.WALL_LIGHTING_Y_OFFSET)
+        vec(0, this.lightingSystem.options.wallLightingYOffset)
       ),
       size: vec.add(
         vec(this._radius * 2),
-        vec(0, Math.abs(LightingSystem.WALL_LIGHTING_Y_OFFSET))
+        vec(0, Math.abs(this.lightingSystem.options.wallLightingYOffset))
       ),
     };
 
     // Render light onto ground light canvas
     this.groundLightCanvas.width = this.groundLightCanvas.height =
       this._radius * 2;
-    this.groundLightContext.imageSmoothingEnabled =
-      this.lightingSystem.options.imageSmoothingEnabled;
     this.groundLightContext.drawImage(this.lightCanvas, 0, 0);
 
     // Subtract shadows from ground lightmap
@@ -332,14 +326,10 @@ export class Light {
     // Render light onto wall light canvases
     this.wallLight1Canvas.width = this.wallLight1Canvas.height =
       this._radius * 2;
-    this.wallLight1Context.imageSmoothingEnabled =
-      this.lightingSystem.options.imageSmoothingEnabled;
     this.wallLight1Context.drawImage(this.lightCanvas, 0, 0);
 
     this.wallLight2Canvas.width = this.wallLight2Canvas.height =
       this._radius * 2;
-    this.wallLight2Context.imageSmoothingEnabled =
-      this.lightingSystem.options.imageSmoothingEnabled;
     this.wallLight2Context.drawImage(this.lightCanvas, 0, 0);
 
     // Prepare full-wall shading based on whether the wall is above or below
@@ -380,8 +370,6 @@ export class Light {
 
   private prepareLightMap() {
     this.lightCanvas.width = this.lightCanvas.height = this._radius * 2;
-    this.lightContext.imageSmoothingEnabled =
-      this.lightingSystem.options.imageSmoothingEnabled;
 
     this.lightContext.save();
     this.lightContext.fillStyle = 'black';
@@ -425,7 +413,9 @@ export class Light {
     context.save();
     context.translate(
       -this.position.x + this._radius,
-      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+      -this.position.y +
+        this._radius -
+        this.lightingSystem.options.wallLightingYOffset
     );
 
     for (const wall of wallShadowReceivers) {
@@ -450,7 +440,7 @@ export class Light {
             remap(
               wallInterval.bottom - this.position.y,
               0,
-              Light.WALL_LIGHT_CUTOFF_DISTANCE,
+              this.lightingSystem.options.wallLightingCutoffDistance,
               0,
               1
             ),
@@ -471,6 +461,7 @@ export class Light {
   ): Shadow<RegionShadowCaster>[] {
     this.groundLightContext.save();
     this.groundLightContext.fillStyle = 'black';
+    this.lightingSystem.setupSoftShadows(this.groundLightContext);
     this.groundLightContext.translate(
       -this.position.x + this._radius,
       -this.position.y + this._radius
@@ -512,6 +503,7 @@ export class Light {
     spriteShadowCasters: SpriteShadowCaster[]
   ): Shadow<SpriteShadowCaster>[] {
     this.groundLightContext.save();
+    this.lightingSystem.setupSoftShadows(this.groundLightContext);
     this.groundLightContext.translate(this._radius, this._radius);
 
     // Shadow metadata for each shadow
@@ -597,6 +589,7 @@ export class Light {
   ): Shadow<CircleShadowCaster>[] {
     this.groundLightContext.save();
     this.groundLightContext.fillStyle = 'black';
+    this.lightingSystem.setupSoftShadows(this.groundLightContext);
     this.groundLightContext.translate(this._radius, this._radius);
 
     // Shadow metadata for each shadow
@@ -667,16 +660,22 @@ export class Light {
   ) {
     this.wallLight1Context.save();
     this.wallLight1Context.fillStyle = 'black';
+    this.lightingSystem.setupSoftShadows(this.wallLight1Context);
     this.wallLight1Context.translate(
       -this.position.x + this._radius,
-      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+      -this.position.y +
+        this._radius -
+        this.lightingSystem.options.wallLightingYOffset
     );
 
     this.wallLight2Context.save();
     this.wallLight2Context.fillStyle = 'black';
+    this.lightingSystem.setupSoftShadows(this.wallLight2Context);
     this.wallLight2Context.translate(
       -this.position.x + this._radius,
-      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+      -this.position.y +
+        this._radius -
+        this.lightingSystem.options.wallLightingYOffset
     );
 
     for (const wall of wallShadowReceivers) {
@@ -875,15 +874,21 @@ export class Light {
     wallShadowReceivers: WallShadowReceiver[]
   ) {
     this.wallLight1Context.save();
+    this.lightingSystem.setupSoftShadows(this.wallLight1Context);
     this.wallLight1Context.translate(
       -this.position.x + this._radius,
-      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+      -this.position.y +
+        this._radius -
+        this.lightingSystem.options.wallLightingYOffset
     );
 
     this.wallLight2Context.save();
+    this.lightingSystem.setupSoftShadows(this.wallLight2Context);
     this.wallLight2Context.translate(
       -this.position.x + this._radius,
-      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+      -this.position.y +
+        this._radius -
+        this.lightingSystem.options.wallLightingYOffset
     );
 
     for (const wall of wallShadowReceivers) {
@@ -1023,7 +1028,7 @@ export class Light {
 
           const t =
             (leftIntercept[INTERCEPT_T] + rightIntercept[INTERCEPT_T]) / 2 +
-            Light.SPRITE_SHADOW_INTERCEPT_OFFSET;
+            this.lightingSystem.options.spriteWallShadowInterceptOffset;
           const l =
             (vec.len(vec.sub(shadow.leftEdge!.start, shadow.leftEdge!.end)) +
               vec.len(
@@ -1032,7 +1037,9 @@ export class Light {
             2;
           const sourceHeight = shadowSprite.height * (1 - t);
           const destinationHeight =
-            l * (1 - t) * Light.SPRITE_WALL_SHADOW_LENGTH_COEFFICIENT;
+            l *
+            (1 - t) *
+            this.lightingSystem.options.spriteWallShadowLengthFactor;
 
           let context: CanvasRenderingContext2D;
           switch (wall.layer) {
@@ -1081,16 +1088,22 @@ export class Light {
   ) {
     this.wallLight1Context.save();
     this.wallLight1Context.fillStyle = 'black';
+    this.lightingSystem.setupSoftShadows(this.wallLight1Context);
     this.wallLight1Context.translate(
       -this.position.x + this._radius,
-      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+      -this.position.y +
+        this._radius -
+        this.lightingSystem.options.wallLightingYOffset
     );
 
     this.wallLight2Context.save();
     this.wallLight2Context.fillStyle = 'black';
+    this.lightingSystem.setupSoftShadows(this.wallLight2Context);
     this.wallLight2Context.translate(
       -this.position.x + this._radius,
-      -this.position.y + this._radius - LightingSystem.WALL_LIGHTING_Y_OFFSET
+      -this.position.y +
+        this._radius -
+        this.lightingSystem.options.wallLightingYOffset
     );
 
     for (const wall of wallShadowReceivers) {
@@ -1171,7 +1184,8 @@ export class Light {
             shadow.position.x,
             shadow.position.y,
             shadow.size.x,
-            shadow.size.y * Light.CIRCLE_WALL_SHADOW_HEIGHT_COEFFICIENT,
+            shadow.size.y *
+              this.lightingSystem.options.circleWallShadowLengthFactor,
             0,
             0,
             Math.PI * 2

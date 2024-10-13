@@ -13,14 +13,71 @@ import { rectangleToInterval } from './utils';
 import { WallShadowReceiver } from './WallShadowReceiver';
 
 type LightingSystemOptions = {
+  /**
+   * Should image smoothing be enabled?
+   *
+   * Set this to false for pixel art style
+   */
   imageSmoothingEnabled: boolean;
+
+  /**
+   * Should soft shadows be enabled?
+   *
+   * This will only apply if softShadowsAmount is > 0
+   */
+  softShadowsEnabled: boolean;
+
+  /**
+   * Amount of soft shadows to apply
+   *
+   * Set this to 0 to disable soft shadows
+   */
+  softShadowsAmount: number;
+
+  /**
+   * Colour of ambient (global) light
+   */
+  ambientLightColour: string;
+
+  /**
+   * Vertical offset for wall lighting
+   */
+  wallLightingYOffset: number;
+
+  /**
+   * Distance above bottom edge of wall shadow receivers before light is
+   * totally cut off
+   */
+  wallLightingCutoffDistance: number;
+
+  /**
+   * Length of sprite wall shadows will be scaled by this amount
+   */
+  spriteWallShadowLengthFactor: number;
+
+  /**
+   * Sprite wall shadow intercept will be offset by this amount (as a factor
+   * of the total edge length)
+   */
+  spriteWallShadowInterceptOffset: number;
+
+  /**
+   * Height of circle wall shadows will be scaled by this amount
+   */
+  circleWallShadowLengthFactor: number;
 };
 
 export class LightingSystem {
-  public static readonly WALL_LIGHTING_Y_OFFSET = -30;
-
   private static readonly DEFAULT_OPTIONS: LightingSystemOptions = {
     imageSmoothingEnabled: true,
+    softShadowsEnabled: false,
+    softShadowsAmount: 2,
+    ambientLightColour: 'black',
+    wallLightingYOffset: -30,
+    wallLightingCutoffDistance: 20,
+    spriteWallShadowLengthFactor: 0.75,
+    spriteWallShadowInterceptOffset: 0.1,
+    circleWallShadowLengthFactor: 0.5,
   };
   private static readonly MERGE_MAX_ITERATIONS = 100;
   private static readonly MERGE_ORDER = [
@@ -33,7 +90,6 @@ export class LightingSystem {
 
   public options: LightingSystemOptions;
 
-  public ambientLightColour = 'black';
   public lights: Light[] = [];
 
   public groundMaskCanvas: HTMLCanvasElement;
@@ -54,7 +110,7 @@ export class LightingSystem {
   public wallMaskedLightMap2Canvas: HTMLCanvasElement;
   private wallMaskedLightMap2Context: CanvasRenderingContext2D;
 
-  public constructor(options?: LightingSystemOptions) {
+  public constructor(options?: Partial<LightingSystemOptions>) {
     this.options = Object.assign(
       {},
       LightingSystem.DEFAULT_OPTIONS,
@@ -196,7 +252,8 @@ export class LightingSystem {
     this.groundMaskedLightMapContext.save();
     camera.setTransforms(this.groundMaskedLightMapContext);
 
-    this.groundMaskedLightMapContext.fillStyle = this.ambientLightColour;
+    this.groundMaskedLightMapContext.fillStyle =
+      this.options.ambientLightColour;
     this.groundMaskedLightMapContext.fillRect(
       camera.bounds.left,
       camera.bounds.top,
@@ -231,7 +288,7 @@ export class LightingSystem {
     this.wallMaskedLightMap1Context.save();
     camera.setTransforms(this.wallMaskedLightMap1Context);
 
-    this.wallMaskedLightMap1Context.fillStyle = this.ambientLightColour;
+    this.wallMaskedLightMap1Context.fillStyle = this.options.ambientLightColour;
     this.wallMaskedLightMap1Context.fillRect(
       camera.bounds.left,
       camera.bounds.top,
@@ -245,7 +302,7 @@ export class LightingSystem {
       this.wallMaskedLightMap1Context.drawImage(
         light.wallLight1Canvas,
         light.position.x - light.radius,
-        light.position.y - light.radius + LightingSystem.WALL_LIGHTING_Y_OFFSET
+        light.position.y - light.radius + this.options.wallLightingYOffset
       );
     });
 
@@ -257,7 +314,7 @@ export class LightingSystem {
     this.wallMaskedLightMap2Context.save();
     camera.setTransforms(this.wallMaskedLightMap2Context);
 
-    this.wallMaskedLightMap2Context.fillStyle = this.ambientLightColour;
+    this.wallMaskedLightMap2Context.fillStyle = this.options.ambientLightColour;
     this.wallMaskedLightMap2Context.fillRect(
       camera.bounds.left,
       camera.bounds.top,
@@ -271,7 +328,7 @@ export class LightingSystem {
       this.wallMaskedLightMap2Context.drawImage(
         light.wallLight2Canvas,
         light.position.x - light.radius,
-        light.position.y - light.radius + LightingSystem.WALL_LIGHTING_Y_OFFSET
+        light.position.y - light.radius + this.options.wallLightingYOffset
       );
     });
 
@@ -304,11 +361,11 @@ export class LightingSystem {
   ) {
     this.wallMaskedLightMap1Context.save();
     this.wallMaskedLightMap1Context.globalCompositeOperation = 'source-over';
-    this.wallMaskedLightMap1Context.fillStyle = this.ambientLightColour;
+    this.wallMaskedLightMap1Context.fillStyle = this.options.ambientLightColour;
 
     this.wallMaskedLightMap2Context.save();
     this.wallMaskedLightMap2Context.globalCompositeOperation = 'source-over';
-    this.wallMaskedLightMap2Context.fillStyle = this.ambientLightColour;
+    this.wallMaskedLightMap2Context.fillStyle = this.options.ambientLightColour;
 
     for (const wall of wallShadowReceivers) {
       const wallRectangle = {
@@ -341,6 +398,22 @@ export class LightingSystem {
 
     this.wallMaskedLightMap1Context.restore();
     this.wallMaskedLightMap2Context.restore();
+  }
+
+  /**
+   * Set up soft shadow settings on the specified canvas context
+   */
+  public setupSoftShadows(context: CanvasRenderingContext2D) {
+    if (
+      this.options.softShadowsEnabled &&
+      this.options.softShadowsAmount !== undefined &&
+      this.options.softShadowsAmount > 0
+    ) {
+      context.shadowColor = 'black';
+      context.shadowBlur = this.options.softShadowsAmount;
+      context.shadowOffsetX = 0;
+      context.shadowOffsetY = 0;
+    }
   }
 
   /**

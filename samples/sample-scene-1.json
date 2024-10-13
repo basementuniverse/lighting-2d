@@ -1,5 +1,15 @@
 {
-  "ambientLightColour": "#555",
+  "options": {
+    "imageSmoothingEnabled": false,
+    "softShadowsEnabled": true,
+    "softShadowsAmount": 2,
+    "ambientLightColour": "#555",
+    "wallLightingYOffset": -30,
+    "wallLightingCutoffDistance": 20,
+    "spriteWallShadowLengthFactor": 0.75,
+    "spriteWallShadowInterceptOffset": 0.1,
+    "circleWallShadowLengthFactor": 0.5
+  },
   "groundShadowReceivers": [
     {
       "type": "GroundShadowReceiver",

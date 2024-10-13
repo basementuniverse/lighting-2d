@@ -67,6 +67,8 @@ export class LightingScene {
 
     this.lightingSystem = new LightingSystem({
       imageSmoothingEnabled: false,
+      softShadowsEnabled: true,
+      softShadowsAmount: 2.5,
     });
     this.lightingSystem.initialise();
 
@@ -105,8 +107,67 @@ export class LightingScene {
       )
       .name('Optimise geometry');
     Game.gui
-      .add(this.lightingSystem, 'ambientLightColour')
+      .add(this.lightingSystem.options, 'imageSmoothingEnabled')
+      .name('Image smoothing enabled')
+      .onChange(value => {
+        this.lightingSystem.options.imageSmoothingEnabled = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'softShadowsEnabled')
+      .name('Soft shadows enabled')
+      .onChange(value => {
+        this.lightingSystem.options.softShadowsEnabled = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'softShadowsAmount')
+      .name('Soft shadows amount')
+      .onChange(value => {
+        this.lightingSystem.options.softShadowsAmount = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'ambientLightColour')
       .name('Ambient light')
+      .onChange(value => {
+        this.lightingSystem.options.ambientLightColour = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'wallLightingYOffset')
+      .name('Wall light Y offset')
+      .onChange(value => {
+        this.lightingSystem.options.wallLightingYOffset = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'wallLightingCutoffDistance')
+      .name('Wall light cutoff distance')
+      .onChange(value => {
+        this.lightingSystem.options.wallLightingCutoffDistance = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'spriteWallShadowLengthFactor', 0, 1)
+      .name('Sprite wall shadow length factor')
+      .onChange(value => {
+        this.lightingSystem.options.spriteWallShadowLengthFactor = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'spriteWallShadowInterceptOffset', 0, 1)
+      .name('Sprite wall shadow intercept offset')
+      .onChange(value => {
+        this.lightingSystem.options.spriteWallShadowInterceptOffset = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'circleWallShadowLengthFactor', 0, 1)
+      .name('Circle wall shadow length factor')
+      .onChange(value => {
+        this.lightingSystem.options.circleWallShadowLengthFactor = value;
+      })
       .listen();
 
     this.loadImage('../images/test-shadow.png', 'test-shadow');
@@ -156,7 +217,7 @@ export class LightingScene {
 
   private save(): string {
     return JSON.stringify({
-      ambientLightColour: this.lightingSystem.ambientLightColour,
+      options: this.lightingSystem.options,
       groundShadowReceivers: this.groundShadowReceivers.map(g => g.serialise()),
       wallShadowReceivers: this.wallShadowReceivers.map(w => w.serialise()),
       regionShadowCasters: this.regionShadowCasters.map(r => r.serialise()),
@@ -175,7 +236,24 @@ export class LightingScene {
       return;
     }
 
-    this.lightingSystem.ambientLightColour = state.ambientLightColour;
+    this.lightingSystem.options.imageSmoothingEnabled =
+      state.options.imageSmoothingEnabled;
+    this.lightingSystem.options.softShadowsEnabled =
+      state.options.softShadowsEnabled;
+    this.lightingSystem.options.softShadowsAmount =
+      state.options.softShadowsAmount;
+    this.lightingSystem.options.ambientLightColour =
+      state.options.ambientLightColour;
+    this.lightingSystem.options.wallLightingYOffset =
+      state.options.wallLightingYOffset;
+    this.lightingSystem.options.wallLightingCutoffDistance =
+      state.options.wallLightingCutoffDistance;
+    this.lightingSystem.options.spriteWallShadowLengthFactor =
+      state.options.spriteWallShadowLengthFactor;
+    this.lightingSystem.options.spriteWallShadowInterceptOffset =
+      state.options.spriteWallShadowInterceptOffset;
+    this.lightingSystem.options.circleWallShadowLengthFactor =
+      state.options.circleWallShadowLengthFactor;
 
     this.groundShadowReceivers.forEach(g => g.destroy());
     this.groundShadowReceivers = state.groundShadowReceivers.map((g: any) =>
@@ -637,7 +715,7 @@ export class LightingScene {
           this.selected.position.x - this.selected.radius,
           this.selected.position.y -
             this.selected.radius +
-            LightingSystem.WALL_LIGHTING_Y_OFFSET
+            this.lightingSystem.options.wallLightingYOffset
         );
         context.restore();
         break;
@@ -661,7 +739,7 @@ export class LightingScene {
           this.selected.position.x - this.selected.radius,
           this.selected.position.y -
             this.selected.radius +
-            LightingSystem.WALL_LIGHTING_Y_OFFSET
+            this.lightingSystem.options.wallLightingYOffset
         );
         context.restore();
         break;
@@ -685,7 +763,7 @@ export class LightingScene {
           this.selected.position.x - this.selected.radius,
           this.selected.position.y -
             this.selected.radius +
-            LightingSystem.WALL_LIGHTING_Y_OFFSET
+            this.lightingSystem.options.wallLightingYOffset
         );
         context.restore();
         break;
@@ -709,7 +787,7 @@ export class LightingScene {
           this.selected.position.x - this.selected.radius,
           this.selected.position.y -
             this.selected.radius +
-            LightingSystem.WALL_LIGHTING_Y_OFFSET
+            this.lightingSystem.options.wallLightingYOffset
         );
         context.restore();
         break;
