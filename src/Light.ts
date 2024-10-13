@@ -1,3 +1,4 @@
+import Camera from '@basementuniverse/camera';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { parseColor } from '@basementuniverse/parsecolor';
@@ -10,6 +11,7 @@ import {
   unlerp,
 } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
+import { ShaderCanvas } from 'shader-canvas';
 import { v4 as uuid } from 'uuid';
 import { CircleShadowCaster } from './CircleShadowCaster';
 import * as constants from './constants';
@@ -117,6 +119,8 @@ export class Light {
   public wallLight2Canvas: HTMLCanvasElement;
   private wallLight2Context: CanvasRenderingContext2D;
 
+  public normalMappingCanvas: ShaderCanvas;
+
   private dirty = true;
 
   public constructor(
@@ -162,6 +166,16 @@ export class Light {
     this.wallLight2Canvas.width = this.wallLight2Canvas.height =
       this._radius * 2;
     this.wallLight2Context = this.wallLight2Canvas.getContext('2d')!;
+
+    if (
+      lightingSystem.options.normalMappingEnabled &&
+      lightingSystem.options.normalMappingShader
+    ) {
+      this.normalMappingCanvas = new ShaderCanvas();
+      this.normalMappingCanvas.setShader(
+        lightingSystem.options.normalMappingShader
+      );
+    }
   }
 
   public get radius() {
@@ -219,7 +233,7 @@ export class Light {
   }
 
   public update(dt: number) {
-    const mouseWorldPosition = this.scene.camera.positionToWorld(
+    const mouseWorldPosition = this.scene.camera.screenToWorld(
       InputManager.mousePosition
     );
 
@@ -271,6 +285,7 @@ export class Light {
   }
 
   public prepare(
+    camera: Camera,
     groundShadowReceivers: GroundShadowReceiver[],
     wallShadowReceivers: WallShadowReceiver[],
     regionShadowCasters: RegionShadowCaster[],
@@ -363,6 +378,11 @@ export class Light {
         wallShadowReceivers
       );
     }
+
+    // If normal mapping is enabled, prepare the normal mapping canvas
+    if (this.lightingSystem.options.normalMappingEnabled) {
+      this.prepareNormalMapping(camera);
+    }
   }
 
   private prepareLightMap() {
@@ -427,6 +447,7 @@ export class Light {
         // If the wall doesn't receive light, it also doesn't receive
         // partial or full shadows
         if (!wall.receiveLight) {
+          wall.drawMask(context);
           continue;
         }
 
@@ -1559,5 +1580,70 @@ export class Light {
       rightEdge,
       vertices: shadowPolygon,
     };
+  }
+
+  private prepareNormalMapping(camera: Camera) {
+    if (this.normalMappingCanvas) {
+      const lightTopLeftScreenPosition = camera.worldToScreen(
+        vec.sub(this.position, vec(this._radius))
+      );
+      const lightBottomRightScreenPosition = camera.worldToScreen(
+        vec.add(this.position, vec(this._radius))
+      );
+
+      this.normalMappingCanvas.setSize(this._radius, this._radius);
+      this.normalMappingCanvas.setUniform('u_resolution', [
+        this._radius * 2,
+        this._radius * 2,
+      ]);
+      this.normalMappingCanvas.setUniform('u_lightColour', [
+        this.colourObject.r / 255,
+        this.colourObject.g / 255,
+        this.colourObject.b / 255,
+        this.colourObject.a,
+      ]);
+      this.normalMappingCanvas.setUniform('u_lightScreenPositionTopLeft', [
+        lightTopLeftScreenPosition.x / Game.screen.x,
+        lightTopLeftScreenPosition.y / Game.screen.y,
+      ]);
+      this.normalMappingCanvas.setUniform('u_lightScreenPositionBottomRight', [
+        lightBottomRightScreenPosition.x / Game.screen.x,
+        lightBottomRightScreenPosition.y / Game.screen.y,
+      ]);
+      this.normalMappingCanvas.setUniform(
+        'u_wallLightingYOffset',
+        this.lightingSystem.options.wallLightingYOffset
+      );
+      this.normalMappingCanvas.setTexture(
+        'u_sceneNormalMap',
+        this.lightingSystem.sceneNormalMapCanvas as unknown as HTMLImageElement
+      );
+      this.normalMappingCanvas.setTexture(
+        'u_groundLightMap',
+        this.groundLightCanvas as unknown as HTMLImageElement
+      );
+      this.normalMappingCanvas.setTexture(
+        'u_wall1LightMap',
+        this.wallLight1Canvas as unknown as HTMLImageElement
+      );
+      this.normalMappingCanvas.setTexture(
+        'u_wall2LightMap',
+        this.wallLight2Canvas as unknown as HTMLImageElement
+      );
+      this.normalMappingCanvas.setTexture(
+        'u_groundMask',
+        this.lightingSystem.groundMaskCanvas as unknown as HTMLImageElement
+      );
+      this.normalMappingCanvas.setTexture(
+        'u_wall1Mask',
+        this.lightingSystem.wallMask1Canvas as unknown as HTMLImageElement
+      );
+      this.normalMappingCanvas.setTexture(
+        'u_wall2Mask',
+        this.lightingSystem.wallMask2Canvas as unknown as HTMLImageElement
+      );
+
+      this.normalMappingCanvas.render();
+    }
   }
 }

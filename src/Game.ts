@@ -66,7 +66,10 @@ export default class Game {
   public initialise() {
     // Initialise subsystems
     Debug.initialise();
-    InputManager.initialise();
+    InputManager.initialise({
+      element: this.canvas,
+      preventContextMenu: true,
+    });
     Game.gui = new dat.GUI({
       width: 300,
     });

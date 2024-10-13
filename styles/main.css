@@ -4,9 +4,9 @@
 }
 
 body {
-  background-image: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%);
-  background-position: 0 0, 32px 32px;
-  background-size: 64px 64px;
+  background-image: repeating-conic-gradient(#808080 0% 25%, #909090 0% 50%);
+  background-position: 8px 8px;
+  background-size: 32px 32px;
   background-color: #fff;
 }
 

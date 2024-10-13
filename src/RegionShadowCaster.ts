@@ -110,7 +110,7 @@ export class RegionShadowCaster implements ShadowCaster {
   }
 
   public update(dt: number) {
-    const mouseWorldPosition = this.scene.camera.positionToWorld(
+    const mouseWorldPosition = this.scene.camera.screenToWorld(
       InputManager.mousePosition
     );
 

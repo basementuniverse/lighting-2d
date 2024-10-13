@@ -4,12 +4,15 @@ import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
+import { LightingSystem } from './LightingSystem';
+import NormalMappable from './NormalMappable';
 import { clampVec, pointInRectangle, quantizeVec } from './utils';
 
-export class GroundShadowReceiver {
+export class GroundShadowReceiver implements NormalMappable {
   private static readonly DEFAULT_SIZE = vec(256, 256);
   private static readonly DEFAULT_COLOUR = '#ddd';
-  private static readonly DEFAULT_SPRITE_NAME = 'ground';
+  private static readonly DEFAULT_SPRITE_NAME = 'ground1';
+  private static readonly DEFAULT_NORMAL_MAP_NAME = 'ground1-normal';
   private static readonly DEBUG_COLOUR = '#36c';
   private static readonly DEBUG_HOVER_COLOUR = '#58e';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -25,6 +28,7 @@ export class GroundShadowReceiver {
   public size: vec = GroundShadowReceiver.DEFAULT_SIZE;
   public colour: string = GroundShadowReceiver.DEFAULT_COLOUR;
   public spriteName: string = GroundShadowReceiver.DEFAULT_SPRITE_NAME;
+  public normalMapName: string = GroundShadowReceiver.DEFAULT_NORMAL_MAP_NAME;
 
   public hovered = false;
   public selected = false;
@@ -62,6 +66,7 @@ export class GroundShadowReceiver {
       .name('height');
     this.folder.add(this, 'colour');
     this.folder.add(this, 'spriteName');
+    this.folder.add(this, 'normalMapName');
   }
 
   public serialise(): any {
@@ -72,6 +77,7 @@ export class GroundShadowReceiver {
       size: this.size,
       colour: this.colour,
       spriteName: this.spriteName,
+      normalMapName: this.normalMapName,
     };
   }
 
@@ -89,7 +95,7 @@ export class GroundShadowReceiver {
   }
 
   public update(dt: number) {
-    const mouseWorldPosition = this.scene.camera.positionToWorld(
+    const mouseWorldPosition = this.scene.camera.screenToWorld(
       InputManager.mousePosition
     );
 
@@ -182,6 +188,36 @@ export class GroundShadowReceiver {
       this.size.x,
       this.size.y
     );
+
+    context.restore();
+  }
+
+  public drawNormalMap(context: CanvasRenderingContext2D) {
+    context.save();
+
+    const image = LightingScene.SPRITES[this.normalMapName];
+    if (image) {
+      const pattern = context.createPattern(image, 'repeat');
+      if (pattern) {
+        context.fillStyle = pattern;
+        context.beginPath();
+        context.rect(
+          this.position.x,
+          this.position.y,
+          this.size.x,
+          this.size.y
+        );
+        context.fill();
+      }
+    } else {
+      context.fillStyle = LightingSystem.NORMAL_MAP_DEFAULT_COLOUR;
+      context.fillRect(
+        this.position.x,
+        this.position.y,
+        this.size.x,
+        this.size.y
+      );
+    }
 
     context.restore();
   }

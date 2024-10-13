@@ -25,7 +25,9 @@ enum LightingSceneRenderMode {
   SelectedGroundLightMap = 'selected-ground',
   SelectedWall1LightMap = 'selected-wall1',
   SelectedWall2LightMap = 'selected-wall2',
-  FinalLightMap = 'lightmap',
+  SelectedNormalMapping = 'selected-normalmapping',
+  LightMap = 'lightmap',
+  SceneNormalMap = 'scenenormalmap',
 }
 
 export class LightingScene {
@@ -53,135 +55,184 @@ export class LightingScene {
     | null = null;
 
   public mode: LightingSceneRenderMode = LightingSceneRenderMode.Normal;
-
   public showHelp: boolean = true;
+  public ready: boolean = false;
 
   public initialise() {
-    this.camera = new Camera(vec(), {
-      minScale: 0.5,
-      maxScale: 5,
-      moveEaseAmount: 0.95,
-      scaleEaseAmount: 0.95,
-    });
-    this.camera.positionImmediate = LightingScene.CAMERA_INITIAL_POSITION;
-
-    this.lightingSystem = new LightingSystem({
-      imageSmoothingEnabled: false,
-      softShadowsEnabled: true,
-      softShadowsAmount: 2.5,
-    });
-    this.lightingSystem.initialise();
-
-    Game.gui
-      .add(this, 'mode', Object.values(LightingSceneRenderMode))
-      .name('Render mode');
-    Game.gui.add(this, 'showHelp').name('Show help');
-    Game.gui
-      .add({ click: () => this.store() }, 'click')
-      .name('Save to local storage');
-    Game.gui
-      .add({ click: () => this.retrieve() }, 'click')
-      .name('Load from local storage');
-    Game.gui
-      .add({ click: () => this.export() }, 'click')
-      .name('Export state to JSON');
-    Game.gui
-      .add({ click: () => this.import() }, 'click')
-      .name('Import state from JSON');
-    Game.gui
-      .add(
-        {
-          click: () => {
-            this.wallShadowReceivers = LightingSystem.mergeWallShadowReceivers(
-              this,
-              this.wallShadowReceivers
-            );
-
-            this.regionShadowCasters = LightingSystem.mergeRegionShadowCasters(
-              this,
-              this.regionShadowCasters
-            );
-          },
+    window
+      .fetch('../shaders/normal-mapping.glsl', {
+        method: 'GET',
+        headers: {
+          'content-type': 'text/plain;charset=UTF-8',
         },
-        'click'
-      )
-      .name('Optimise geometry');
-    Game.gui
-      .add(this.lightingSystem.options, 'imageSmoothingEnabled')
-      .name('Image smoothing enabled')
-      .onChange(value => {
-        this.lightingSystem.options.imageSmoothingEnabled = value;
+        cache: 'no-store',
       })
-      .listen();
-    Game.gui
-      .add(this.lightingSystem.options, 'softShadowsEnabled')
-      .name('Soft shadows enabled')
-      .onChange(value => {
-        this.lightingSystem.options.softShadowsEnabled = value;
+      .then(response => {
+        return response.text();
       })
-      .listen();
-    Game.gui
-      .add(this.lightingSystem.options, 'softShadowsAmount')
-      .name('Soft shadows amount')
-      .onChange(value => {
-        this.lightingSystem.options.softShadowsAmount = value;
-      })
-      .listen();
-    Game.gui
-      .add(this.lightingSystem.options, 'ambientLightColour')
-      .name('Ambient light')
-      .onChange(value => {
-        this.lightingSystem.options.ambientLightColour = value;
-      })
-      .listen();
-    Game.gui
-      .add(this.lightingSystem.options, 'wallLightingYOffset')
-      .name('Wall light Y offset')
-      .onChange(value => {
-        this.lightingSystem.options.wallLightingYOffset = value;
-      })
-      .listen();
-    Game.gui
-      .add(this.lightingSystem.options, 'wallLightingCutoffDistance')
-      .name('Wall light cutoff distance')
-      .onChange(value => {
-        this.lightingSystem.options.wallLightingCutoffDistance = value;
-      })
-      .listen();
-    Game.gui
-      .add(this.lightingSystem.options, 'spriteWallShadowLengthFactor', 0, 1)
-      .name('Sprite wall shadow length factor')
-      .onChange(value => {
-        this.lightingSystem.options.spriteWallShadowLengthFactor = value;
-      })
-      .listen();
-    Game.gui
-      .add(this.lightingSystem.options, 'spriteWallShadowInterceptOffset', 0, 1)
-      .name('Sprite wall shadow intercept offset')
-      .onChange(value => {
-        this.lightingSystem.options.spriteWallShadowInterceptOffset = value;
-      })
-      .listen();
-    Game.gui
-      .add(this.lightingSystem.options, 'circleWallShadowLengthFactor', 0, 1)
-      .name('Circle wall shadow length factor')
-      .onChange(value => {
-        this.lightingSystem.options.circleWallShadowLengthFactor = value;
-      })
-      .listen();
+      .then(data => {
+        // Camera
+        this.camera = new Camera(vec(), {
+          minScale: 0.5,
+          maxScale: 5,
+          moveEaseAmount: 0.95,
+          scaleEaseAmount: 0.95,
+        });
+        this.camera.positionImmediate = LightingScene.CAMERA_INITIAL_POSITION;
 
+        // Lighting
+        this.lightingSystem = new LightingSystem({
+          imageSmoothingEnabled: false,
+          softShadowsEnabled: true,
+          softShadowsAmount: 2.5,
+          normalMappingEnabled: true,
+          normalMappingShader: data,
+        });
+        this.lightingSystem.initialise();
+
+        // GUI controls
+        Game.gui
+          .add(this, 'mode', Object.values(LightingSceneRenderMode))
+          .name('Render mode');
+        Game.gui.add(this, 'showHelp').name('Show help');
+        Game.gui
+          .add({ click: () => this.store() }, 'click')
+          .name('Save to local storage');
+        Game.gui
+          .add({ click: () => this.retrieve() }, 'click')
+          .name('Load from local storage');
+        Game.gui
+          .add({ click: () => this.export() }, 'click')
+          .name('Export state to JSON');
+        Game.gui
+          .add({ click: () => this.import() }, 'click')
+          .name('Import state from JSON');
+        Game.gui
+          .add(
+            {
+              click: () => {
+                this.wallShadowReceivers =
+                  LightingSystem.mergeWallShadowReceivers(
+                    this,
+                    this.wallShadowReceivers
+                  );
+
+                this.regionShadowCasters =
+                  LightingSystem.mergeRegionShadowCasters(
+                    this,
+                    this.regionShadowCasters
+                  );
+              },
+            },
+            'click'
+          )
+          .name('Optimise geometry');
+        Game.gui
+          .add(this.lightingSystem.options, 'imageSmoothingEnabled')
+          .name('Image smoothing enabled')
+          .onChange(value => {
+            this.lightingSystem.options.imageSmoothingEnabled = value;
+          })
+          .listen();
+        Game.gui
+          .add(this.lightingSystem.options, 'softShadowsEnabled')
+          .name('Soft shadows enabled')
+          .onChange(value => {
+            this.lightingSystem.options.softShadowsEnabled = value;
+          })
+          .listen();
+        Game.gui
+          .add(this.lightingSystem.options, 'softShadowsAmount')
+          .name('Soft shadows amount')
+          .onChange(value => {
+            this.lightingSystem.options.softShadowsAmount = value;
+          })
+          .listen();
+        Game.gui
+          .add(this.lightingSystem.options, 'normalMappingEnabled')
+          .name('Normal mapping enabled')
+          .onChange(value => {
+            this.lightingSystem.options.normalMappingEnabled = value;
+          })
+          .listen();
+        Game.gui
+          .add(this.lightingSystem.options, 'ambientLightColour')
+          .name('Ambient light')
+          .onChange(value => {
+            this.lightingSystem.options.ambientLightColour = value;
+          })
+          .listen();
+        Game.gui
+          .add(this.lightingSystem.options, 'wallLightingYOffset')
+          .name('Wall light Y offset')
+          .onChange(value => {
+            this.lightingSystem.options.wallLightingYOffset = value;
+          })
+          .listen();
+        Game.gui
+          .add(this.lightingSystem.options, 'wallLightingCutoffDistance')
+          .name('Wall light cutoff distance')
+          .onChange(value => {
+            this.lightingSystem.options.wallLightingCutoffDistance = value;
+          })
+          .listen();
+        Game.gui
+          .add(
+            this.lightingSystem.options,
+            'spriteWallShadowLengthFactor',
+            0,
+            1
+          )
+          .name('Sprite wall shadow length factor')
+          .onChange(value => {
+            this.lightingSystem.options.spriteWallShadowLengthFactor = value;
+          })
+          .listen();
+        Game.gui
+          .add(
+            this.lightingSystem.options,
+            'spriteWallShadowInterceptOffset',
+            0,
+            1
+          )
+          .name('Sprite wall shadow intercept offset')
+          .onChange(value => {
+            this.lightingSystem.options.spriteWallShadowInterceptOffset = value;
+          })
+          .listen();
+        Game.gui
+          .add(
+            this.lightingSystem.options,
+            'circleWallShadowLengthFactor',
+            0,
+            1
+          )
+          .name('Circle wall shadow length factor')
+          .onChange(value => {
+            this.lightingSystem.options.circleWallShadowLengthFactor = value;
+          })
+          .listen();
+
+        this.ready = true;
+      });
+
+    // Load images
     this.loadImage('../images/light.png', 'light');
-    this.loadImage('../images/test-shadow.png', 'test-shadow');
     this.loadImage('../images/character.png', 'character');
     this.loadImage('../images/character-mask.png', 'character-mask');
+    this.loadImage('../images/character-normal.png', 'character-normal');
     this.loadImage('../images/character-shadow.png', 'character-shadow');
-    this.loadImage('../images/wall.png', 'wall');
-    this.loadImage('../images/wall-mask.png', 'wall-mask');
+    this.loadImage('../images/ground1.png', 'ground1');
+    this.loadImage('../images/ground1-normal.png', 'ground1-normal');
+    this.loadImage('../images/ground2.png', 'ground2');
+    this.loadImage('../images/ground2-normal.png', 'ground2-normal');
+    this.loadImage('../images/wall1.png', 'wall1');
+    this.loadImage('../images/wall1-mask.png', 'wall1-mask');
+    this.loadImage('../images/wall1-normal.png', 'wall1-normal');
     this.loadImage('../images/wall2.png', 'wall2');
     this.loadImage('../images/wall2-mask.png', 'wall2-mask');
+    this.loadImage('../images/wall2-normal.png', 'wall2-normal');
     this.loadImage('../images/wall-top.png', 'wall-top');
-    this.loadImage('../images/ground.png', 'ground');
-    this.loadImage('../images/ground2.png', 'ground2');
     this.loadImage('../images/anvil.png', 'anvil');
     this.loadImage('../images/anvil-mask.png', 'anvil-mask');
     this.loadImage('../images/barrel.png', 'barrel');
@@ -243,6 +294,8 @@ export class LightingScene {
       state.options.softShadowsEnabled;
     this.lightingSystem.options.softShadowsAmount =
       state.options.softShadowsAmount;
+    this.lightingSystem.options.normalMappingEnabled =
+      state.options.normalMappingEnabled;
     this.lightingSystem.options.ambientLightColour =
       state.options.ambientLightColour;
     this.lightingSystem.options.wallLightingYOffset =
@@ -296,8 +349,12 @@ export class LightingScene {
   }
 
   public update(dt: number) {
+    if (!this.ready) {
+      return;
+    }
+
     const cameraBounds = this.camera.bounds;
-    const mouseWorldPosition = this.camera.positionToWorld(
+    const mouseWorldPosition = this.camera.screenToWorld(
       InputManager.mousePosition
     );
 
@@ -596,6 +653,10 @@ export class LightingScene {
   }
 
   public draw(context: CanvasRenderingContext2D) {
+    if (!this.ready) {
+      return;
+    }
+
     context.imageSmoothingEnabled = false;
 
     switch (this.mode) {
@@ -614,6 +675,10 @@ export class LightingScene {
         this.wallShadowReceivers.forEach(w => w.draw(context));
         context.restore();
 
+        this.lightingSystem.drawSceneNormalMap(this.camera, [
+          ...this.groundShadowReceivers,
+          ...this.wallShadowReceivers,
+        ]);
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -738,9 +803,7 @@ export class LightingScene {
         context.drawImage(
           this.selected.groundLightCanvas,
           this.selected.position.x - this.selected.radius,
-          this.selected.position.y -
-            this.selected.radius +
-            this.lightingSystem.options.wallLightingYOffset
+          this.selected.position.y - this.selected.radius
         );
         context.restore();
         break;
@@ -793,7 +856,15 @@ export class LightingScene {
         context.restore();
         break;
 
-      case LightingSceneRenderMode.FinalLightMap:
+      case LightingSceneRenderMode.SelectedNormalMapping:
+        if (!this.selected || this.selected.type !== 'Light') {
+          break;
+        }
+
+        this.lightingSystem.drawSceneNormalMap(this.camera, [
+          ...this.groundShadowReceivers,
+          ...this.wallShadowReceivers,
+        ]);
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -802,9 +873,34 @@ export class LightingScene {
           this.spriteShadowCasters,
           this.circleShadowCasters
         );
-        context.drawImage(this.lightingSystem.groundMaskedLightMapCanvas, 0, 0);
-        context.drawImage(this.lightingSystem.wallMaskedLightMap1Canvas, 0, 0);
-        context.drawImage(this.lightingSystem.wallMaskedLightMap2Canvas, 0, 0);
+        context.save();
+        this.camera.setTransforms(context);
+        context.drawImage(
+          this.selected.normalMappingCanvas.domElement,
+          this.selected.position.x - this.selected.radius,
+          this.selected.position.y - this.selected.radius
+        );
+        context.restore();
+        break;
+
+      case LightingSceneRenderMode.LightMap:
+        this.lightingSystem.prepare(
+          this.camera,
+          this.groundShadowReceivers,
+          this.wallShadowReceivers,
+          this.regionShadowCasters,
+          this.spriteShadowCasters,
+          this.circleShadowCasters
+        );
+        context.drawImage(this.lightingSystem.lightMapCanvas, 0, 0);
+        break;
+
+      case LightingSceneRenderMode.SceneNormalMap:
+        this.lightingSystem.drawSceneNormalMap(this.camera, [
+          ...this.groundShadowReceivers,
+          ...this.wallShadowReceivers,
+        ]);
+        context.drawImage(this.lightingSystem.sceneNormalMapCanvas, 0, 0);
         break;
     }
 
