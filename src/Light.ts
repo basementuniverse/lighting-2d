@@ -615,8 +615,8 @@ export class Light {
           vec(caster.size.x * caster.anchor.x, caster.size.y * caster.anchor.y)
         );
         const shadowDistance = smoothstep(
-          caster.minDistance,
-          caster.maxDistance ?? this.radius,
+          caster.minShadowDistance,
+          caster.maxShadowDistance ?? this.radius,
           unlerp(0, this.radius, vec.len(vec.sub(shadowOrigin, this.position)))
         );
         const shadowPosition = vec.mul(

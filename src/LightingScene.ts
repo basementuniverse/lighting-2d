@@ -12,6 +12,22 @@ import { RegionShadowCaster } from './RegionShadowCaster';
 import { SpriteShadowCaster } from './SpriteShadowCaster';
 import { WallShadowReceiver } from './WallShadowReceiver';
 
+enum LightingSceneRenderMode {
+  NoLighting = 'nolighting',
+  Normal = 'normal',
+  GroundMask = 'groundmask',
+  WallMask1 = 'wallmask1',
+  WallMask2 = 'wallmask2',
+  GroundMaskedLightMap = 'groundmaskedlightmap',
+  WallMaskedLightMap1 = 'wallmaskedlightmap1',
+  WallMaskedLightMap2 = 'wallmaskedlightmap2',
+  SelectedLightMap = 'selected-light',
+  SelectedGroundLightMap = 'selected-ground',
+  SelectedWall1LightMap = 'selected-wall1',
+  SelectedWall2LightMap = 'selected-wall2',
+  FinalLightMap = 'lightmap',
+}
+
 export class LightingScene {
   public static readonly GRID_SIZE = 16;
   public static readonly SPRITES: { [key: string]: HTMLImageElement } = {};
@@ -36,16 +52,7 @@ export class LightingScene {
     | Light
     | null = null;
 
-  public mode:
-    | 'nolighting'
-    | 'normal'
-    | 'groundmask'
-    | 'wallmask1'
-    | 'wallmask2'
-    | 'groundmaskedlightmap'
-    | 'wallmaskedlightmap1'
-    | 'wallmaskedlightmap2'
-    | 'lightmap' = 'normal';
+  public mode: LightingSceneRenderMode = LightingSceneRenderMode.Normal;
 
   public showHelp: boolean = true;
 
@@ -64,6 +71,10 @@ export class LightingScene {
     this.lightingSystem.initialise();
 
     Game.gui
+      .add(this, 'mode', Object.values(LightingSceneRenderMode))
+      .name('Render mode');
+    Game.gui.add(this, 'showHelp').name('Show help');
+    Game.gui
       .add({ click: () => this.store() }, 'click')
       .name('Save to local storage');
     Game.gui
@@ -75,19 +86,6 @@ export class LightingScene {
     Game.gui
       .add({ click: () => this.import() }, 'click')
       .name('Import state from JSON');
-    Game.gui
-      .add(this, 'mode', [
-        'nolighting',
-        'normal',
-        'groundmask',
-        'wallmask1',
-        'wallmask2',
-        'groundmaskedlightmap',
-        'wallmaskedlightmap1',
-        'wallmaskedlightmap2',
-        'lightmap',
-      ])
-      .name('Mode');
     Game.gui
       .add(
         {
@@ -105,8 +103,11 @@ export class LightingScene {
         },
         'click'
       )
-      .name('Optimise');
-    Game.gui.add(this.lightingSystem, 'ambientLightColour').listen();
+      .name('Optimise geometry');
+    Game.gui
+      .add(this.lightingSystem, 'ambientLightColour')
+      .name('Ambient light')
+      .listen();
 
     this.loadImage('../images/test-shadow.png', 'test-shadow');
     this.loadImage('../images/character.png', 'character');
@@ -221,36 +222,38 @@ export class LightingScene {
       InputManager.mousePosition
     );
 
+    Debug.value(
+      'Mouse world position',
+      vec.str(vec.map(mouseWorldPosition, v => v.toFixed(2)))
+    );
+    Debug.value(
+      'Camera',
+      `pos ${vec.str(
+        vec.map(this.camera.position, v => v.toFixed(2))
+      )} scale ${this.camera.scale.toFixed(2)}`
+    );
+    Debug.value(
+      'Camera bounds',
+      `top=${Math.floor(cameraBounds.top)} left=${Math.floor(
+        cameraBounds.left
+      )} bottom=${Math.floor(cameraBounds.bottom)} right=${Math.floor(
+        cameraBounds.right
+      )}`
+    );
+    Debug.value('Selected', this.selected ? this.selected.id : 'none');
+
     if (this.showHelp) {
-      Debug.value(
-        'Mouse world position',
-        vec.str(vec.map(mouseWorldPosition, v => v.toFixed(2)))
-      );
-      Debug.value(
-        'Camera position',
-        vec.str(vec.map(this.camera.position, v => v.toFixed(2)))
-      );
-      Debug.value('Camera scale', this.camera.scale.toFixed(2));
-      Debug.value(
-        'Camera bounds',
-        `top=${Math.floor(cameraBounds.top)} left=${Math.floor(
-          cameraBounds.left
-        )} bottom=${Math.floor(cameraBounds.bottom)} right=${Math.floor(
-          cameraBounds.right
-        )}`
-      );
-      Debug.value('Selected', this.selected ? this.selected.id : 'none');
       Debug.value('Press SHIFT-L to create a new Light', '');
       Debug.value('Press SHIFT-G to create a new GroundShadowReceiver', '');
       Debug.value('Press SHIFT-W to create a new WallShadowReceiver', '');
       Debug.value('Press SHIFT-R to create a new RegionShadowCaster', '');
       Debug.value('Press SHIFT-S to create a new SpriteShadowCaster', '');
       Debug.value('Press SHIFT-C to create a new CircleShadowCaster', '');
-      Debug.value('Press D to duplicate selected', '');
+      Debug.value('Press SHIFT-D to duplicate selected', '');
+      Debug.value('Use arrow keys to move camera', '');
+      Debug.value('SHIFT-mouse wheel to zoom camera', '');
       Debug.value('CTRL-drag to resize', '');
       Debug.value('Hold SHIFT to snap to grid', '');
-    } else {
-      Debug.value('Press H to show help', '');
     }
 
     // Handle camera move
@@ -300,11 +303,6 @@ export class LightingScene {
     this.wallShadowReceivers = this.wallShadowReceivers.sort(
       (a, b) => a.position.y + a.size.y - (b.position.y + b.size.y)
     );
-
-    // Handle help toggle
-    if (InputManager.keyPressed('KeyH')) {
-      this.showHelp = !this.showHelp;
-    }
 
     // Handle item select
     if (InputManager.mousePressed()) {
@@ -412,7 +410,11 @@ export class LightingScene {
     }
 
     // Handle item duplicate
-    if (InputManager.keyPressed('KeyD') && this.selected) {
+    if (
+      InputManager.keyDown('ShiftLeft') &&
+      InputManager.keyPressed('KeyD') &&
+      this.selected
+    ) {
       switch (this.selected.type) {
         case 'GroundShadowReceiver':
           this.groundShadowReceivers.push(
@@ -518,7 +520,7 @@ export class LightingScene {
     context.imageSmoothingEnabled = false;
 
     switch (this.mode) {
-      case 'nolighting':
+      case LightingSceneRenderMode.NoLighting:
         context.save();
         this.camera.setTransforms(context);
         this.groundShadowReceivers.forEach(g => g.draw(context));
@@ -526,7 +528,7 @@ export class LightingScene {
         context.restore();
         break;
 
-      case 'normal':
+      case LightingSceneRenderMode.Normal:
         context.save();
         this.camera.setTransforms(context);
         this.groundShadowReceivers.forEach(g => g.draw(context));
@@ -544,7 +546,7 @@ export class LightingScene {
         this.lightingSystem.draw(context);
         break;
 
-      case 'groundmask':
+      case LightingSceneRenderMode.GroundMask:
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -556,7 +558,7 @@ export class LightingScene {
         context.drawImage(this.lightingSystem.groundMaskCanvas, 0, 0);
         break;
 
-      case 'wallmask1':
+      case LightingSceneRenderMode.WallMask1:
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -568,7 +570,7 @@ export class LightingScene {
         context.drawImage(this.lightingSystem.wallMask1Canvas, 0, 0);
         break;
 
-      case 'wallmask2':
+      case LightingSceneRenderMode.WallMask2:
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -580,7 +582,7 @@ export class LightingScene {
         context.drawImage(this.lightingSystem.wallMask2Canvas, 0, 0);
         break;
 
-      case 'groundmaskedlightmap':
+      case LightingSceneRenderMode.GroundMaskedLightMap:
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -592,7 +594,7 @@ export class LightingScene {
         context.drawImage(this.lightingSystem.groundMaskedLightMapCanvas, 0, 0);
         break;
 
-      case 'wallmaskedlightmap1':
+      case LightingSceneRenderMode.WallMaskedLightMap1:
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -604,7 +606,7 @@ export class LightingScene {
         context.drawImage(this.lightingSystem.wallMaskedLightMap1Canvas, 0, 0);
         break;
 
-      case 'wallmaskedlightmap2':
+      case LightingSceneRenderMode.WallMaskedLightMap2:
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,
@@ -616,7 +618,103 @@ export class LightingScene {
         context.drawImage(this.lightingSystem.wallMaskedLightMap2Canvas, 0, 0);
         break;
 
-      case 'lightmap':
+      case LightingSceneRenderMode.SelectedLightMap:
+        if (!this.selected || this.selected.type !== 'Light') {
+          break;
+        }
+        this.lightingSystem.prepare(
+          this.camera,
+          this.groundShadowReceivers,
+          this.wallShadowReceivers,
+          this.regionShadowCasters,
+          this.spriteShadowCasters,
+          this.circleShadowCasters
+        );
+        context.save();
+        this.camera.setTransforms(context);
+        context.drawImage(
+          this.selected.lightCanvas,
+          this.selected.position.x - this.selected.radius,
+          this.selected.position.y -
+            this.selected.radius +
+            LightingSystem.WALL_LIGHTING_Y_OFFSET
+        );
+        context.restore();
+        break;
+
+      case LightingSceneRenderMode.SelectedGroundLightMap:
+        if (!this.selected || this.selected.type !== 'Light') {
+          break;
+        }
+        this.lightingSystem.prepare(
+          this.camera,
+          this.groundShadowReceivers,
+          this.wallShadowReceivers,
+          this.regionShadowCasters,
+          this.spriteShadowCasters,
+          this.circleShadowCasters
+        );
+        context.save();
+        this.camera.setTransforms(context);
+        context.drawImage(
+          this.selected.groundLightCanvas,
+          this.selected.position.x - this.selected.radius,
+          this.selected.position.y -
+            this.selected.radius +
+            LightingSystem.WALL_LIGHTING_Y_OFFSET
+        );
+        context.restore();
+        break;
+
+      case LightingSceneRenderMode.SelectedWall1LightMap:
+        if (!this.selected || this.selected.type !== 'Light') {
+          break;
+        }
+        this.lightingSystem.prepare(
+          this.camera,
+          this.groundShadowReceivers,
+          this.wallShadowReceivers,
+          this.regionShadowCasters,
+          this.spriteShadowCasters,
+          this.circleShadowCasters
+        );
+        context.save();
+        this.camera.setTransforms(context);
+        context.drawImage(
+          this.selected.wallLight1Canvas,
+          this.selected.position.x - this.selected.radius,
+          this.selected.position.y -
+            this.selected.radius +
+            LightingSystem.WALL_LIGHTING_Y_OFFSET
+        );
+        context.restore();
+        break;
+
+      case LightingSceneRenderMode.SelectedWall2LightMap:
+        if (!this.selected || this.selected.type !== 'Light') {
+          break;
+        }
+        this.lightingSystem.prepare(
+          this.camera,
+          this.groundShadowReceivers,
+          this.wallShadowReceivers,
+          this.regionShadowCasters,
+          this.spriteShadowCasters,
+          this.circleShadowCasters
+        );
+        context.save();
+        this.camera.setTransforms(context);
+        context.drawImage(
+          this.selected.wallLight2Canvas,
+          this.selected.position.x - this.selected.radius,
+          this.selected.position.y -
+            this.selected.radius +
+            LightingSystem.WALL_LIGHTING_Y_OFFSET
+        );
+        context.restore();
+        break;
+
+      case LightingSceneRenderMode.FinalLightMap:
         this.lightingSystem.prepare(
           this.camera,
           this.groundShadowReceivers,

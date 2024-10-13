@@ -10,8 +10,8 @@ import { clampVec, pointInRectangle, quantizeVec } from './utils';
 export class CircleShadowCaster implements ShadowCaster {
   private static readonly DEFAULT_SIZE = vec(64, 64);
   private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
-  private static readonly DEFAULT_MIN_DISTANCE = 5;
-  private static readonly DEFAULT_MAX_DISTANCE = 20;
+  private static readonly DEFAULT_MIN_SHADOW_DISTANCE = 5;
+  private static readonly DEFAULT_MAX_SHADOW_DISTANCE = 20;
   private static readonly DEFAULT_ALPHA = 1;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
@@ -27,8 +27,10 @@ export class CircleShadowCaster implements ShadowCaster {
   public position: vec = vec();
   public size: vec = CircleShadowCaster.DEFAULT_SIZE;
   public anchor: vec = CircleShadowCaster.DEFAULT_ANCHOR;
-  public minDistance: number = CircleShadowCaster.DEFAULT_MIN_DISTANCE;
-  public maxDistance: number | null = CircleShadowCaster.DEFAULT_MAX_DISTANCE;
+  public minShadowDistance: number =
+    CircleShadowCaster.DEFAULT_MIN_SHADOW_DISTANCE;
+  public maxShadowDistance: number | null =
+    CircleShadowCaster.DEFAULT_MAX_SHADOW_DISTANCE;
   public alpha: number = CircleShadowCaster.DEFAULT_ALPHA;
 
   public hovered = false;
@@ -67,8 +69,8 @@ export class CircleShadowCaster implements ShadowCaster {
       .name('height');
     this.folder.add(this.anchor, 'x').name('anchor x');
     this.folder.add(this.anchor, 'y').name('anchor y');
-    this.folder.add(this, 'minDistance');
-    this.folder.add(this, 'maxDistance');
+    this.folder.add(this, 'minShadowDistance');
+    this.folder.add(this, 'maxShadowDistance');
     this.folder.add(this, 'alpha');
   }
 
@@ -79,8 +81,8 @@ export class CircleShadowCaster implements ShadowCaster {
       position: this.position,
       size: this.size,
       anchor: this.anchor,
-      minDistance: this.minDistance,
-      maxDistance: this.maxDistance,
+      minShadowDistance: this.minShadowDistance,
+      maxShadowDistance: this.maxShadowDistance,
       alpha: this.alpha,
     };
   }

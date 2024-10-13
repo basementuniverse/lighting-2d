@@ -77,6 +77,7 @@ export default class Game {
         'borders',
         'all',
       ])
+      .name('Debug mode')
       .onChange(v => {
         Game.debugMode = v;
       });

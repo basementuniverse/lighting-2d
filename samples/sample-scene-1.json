@@ -1,0 +1,1132 @@
+{
+  "ambientLightColour": "#555",
+  "groundShadowReceivers": [
+    {
+      "type": "GroundShadowReceiver",
+      "id": "73779528",
+      "position": {
+        "x": 640,
+        "y": 384
+      },
+      "size": {
+        "x": 512,
+        "y": 464
+      },
+      "colour": "#ddd",
+      "spriteName": "ground"
+    }
+  ],
+  "wallShadowReceivers": [
+    {
+      "type": "WallShadowReceiver",
+      "id": "0d4770cb",
+      "position": {
+        "x": 992,
+        "y": 448
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "9dbc6fcf",
+      "position": {
+        "x": 752,
+        "y": 448
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "c88cf064",
+      "position": {
+        "x": 800,
+        "y": 448
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "06ab5f5d",
+      "position": {
+        "x": 848,
+        "y": 448
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "74f0b454",
+      "position": {
+        "x": 896,
+        "y": 448
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "e648e2ed",
+      "position": {
+        "x": 944,
+        "y": 448
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "83e79cfb",
+      "position": {
+        "x": 1040,
+        "y": 448
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "41a5aac5",
+      "position": {
+        "x": 704,
+        "y": 448
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "b2cee7f6",
+      "position": {
+        "x": 752,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "40af70e5",
+      "position": {
+        "x": 848,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "63aac9ae",
+      "position": {
+        "x": 944,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "0b2fa62d",
+      "position": {
+        "x": 992,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "1f26b8a3",
+      "position": {
+        "x": 1040,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "3df0b8f8",
+      "position": {
+        "x": 704,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "79fa9b4a",
+      "position": {
+        "x": 800,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall2",
+      "maskName": "wall2-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "1adb8a7a",
+      "position": {
+        "x": 896,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall2",
+      "maskName": "wall2-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "3f5cd5fd",
+      "position": {
+        "x": 960,
+        "y": 528
+      },
+      "size": {
+        "x": 32,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "character",
+      "maskName": "character-mask",
+      "spriteRepeat": false,
+      "layer": "two"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "824e94cf",
+      "position": {
+        "x": 1040,
+        "y": 544
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "a2ce0470",
+      "position": {
+        "x": 704,
+        "y": 544
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "9aa067f6",
+      "position": {
+        "x": 816,
+        "y": 592
+      },
+      "size": {
+        "x": 32,
+        "y": 32
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "sign",
+      "maskName": "sign-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "c82860af",
+      "position": {
+        "x": 992,
+        "y": 592
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "fe88aac2",
+      "position": {
+        "x": 1040,
+        "y": 592
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "65379ca2",
+      "position": {
+        "x": 704,
+        "y": 592
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "bf22ce64",
+      "position": {
+        "x": 1040,
+        "y": 640
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "8ae8d1d8",
+      "position": {
+        "x": 992,
+        "y": 640
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "0c912ca9",
+      "position": {
+        "x": 704,
+        "y": 640
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "36200389",
+      "position": {
+        "x": 1068.8571428571431,
+        "y": 667.047619047619
+      },
+      "size": {
+        "x": 32,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "character",
+      "maskName": "character-mask",
+      "spriteRepeat": false,
+      "layer": "two"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "c4be92fe",
+      "position": {
+        "x": 752,
+        "y": 688
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "fc5838d7",
+      "position": {
+        "x": 800,
+        "y": 688
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "9b49cc7d",
+      "position": {
+        "x": 896,
+        "y": 688
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "73018e0a",
+      "position": {
+        "x": 944,
+        "y": 688
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "dc4cec32",
+      "position": {
+        "x": 992,
+        "y": 688
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "ea9e38df",
+      "position": {
+        "x": 704,
+        "y": 688
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "black",
+      "receiveLight": false,
+      "spriteName": "wall-top",
+      "maskName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "beb401fc",
+      "position": {
+        "x": 896,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "9c03d361",
+      "position": {
+        "x": 992,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "50240b91",
+      "position": {
+        "x": 944,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "d7d77aa5",
+      "position": {
+        "x": 800,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "4b23e862",
+      "position": {
+        "x": 752,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "eea6a037",
+      "position": {
+        "x": 704,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall",
+      "maskName": "wall-mask",
+      "spriteRepeat": false,
+      "layer": "one"
+    }
+  ],
+  "regionShadowCasters": [
+    {
+      "type": "RegionShadowCaster",
+      "id": "3673c330",
+      "position": {
+        "x": 704,
+        "y": 480
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "c8265bc2",
+      "position": {
+        "x": 752,
+        "y": 480
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "1f1f077b",
+      "position": {
+        "x": 800,
+        "y": 480
+      },
+      "size": {
+        "x": 46.7948717948708,
+        "y": 71.08974358974478
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "f007e5f8",
+      "position": {
+        "x": 848,
+        "y": 480
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "2db010f9",
+      "position": {
+        "x": 944,
+        "y": 480
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "3e1ce4cd",
+      "position": {
+        "x": 992,
+        "y": 480
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "e6fcefec",
+      "position": {
+        "x": 1040,
+        "y": 480
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "b235959c",
+      "position": {
+        "x": 704,
+        "y": 544
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "15aaeff9",
+      "position": {
+        "x": 704,
+        "y": 592
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "331bf2c5",
+      "position": {
+        "x": 704,
+        "y": 640
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "67b06f0b",
+      "position": {
+        "x": 704,
+        "y": 688
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "fdf5f1c8",
+      "position": {
+        "x": 704,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "11a84208",
+      "position": {
+        "x": 752,
+        "y": 720
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "17b9fc31",
+      "position": {
+        "x": 800,
+        "y": 720
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "8e1d4609",
+      "position": {
+        "x": 896,
+        "y": 720
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "08734b13",
+      "position": {
+        "x": 944,
+        "y": 720
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "2144114f",
+      "position": {
+        "x": 992,
+        "y": 688
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "28613a8a",
+      "position": {
+        "x": 992,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "38d7c0fb",
+      "position": {
+        "x": 992,
+        "y": 624
+      },
+      "size": {
+        "x": 48,
+        "y": 64
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "fbe94ac9",
+      "position": {
+        "x": 1040,
+        "y": 640
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "703dbda2",
+      "position": {
+        "x": 1040,
+        "y": 592
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "8ffe006b",
+      "position": {
+        "x": 1040,
+        "y": 544
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "34d67c20",
+      "position": {
+        "x": 1040,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 48
+      }
+    },
+    {
+      "type": "RegionShadowCaster",
+      "id": "1fc43259",
+      "position": {
+        "x": 896,
+        "y": 480
+      },
+      "size": {
+        "x": 46.7948717948708,
+        "y": 71.08974358974478
+      }
+    }
+  ],
+  "spriteShadowCasters": [
+    {
+      "type": "SpriteShadowCaster",
+      "id": "4aa75557",
+      "position": {
+        "x": 960,
+        "y": 560
+      },
+      "size": {
+        "x": 32,
+        "y": 16
+      },
+      "shadowName": "character-shadow",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "offset": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "minShadowLength": 32,
+      "maxShadowLength": 128
+    },
+    {
+      "type": "SpriteShadowCaster",
+      "id": "0a2921c2",
+      "position": {
+        "x": 1069.3333333333333,
+        "y": 698.5714285714286
+      },
+      "size": {
+        "x": 32,
+        "y": 16
+      },
+      "shadowName": "character-shadow",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "offset": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "minShadowLength": 64,
+      "maxShadowLength": 64
+    }
+  ],
+  "circleShadowCasters": [
+    {
+      "type": "CircleShadowCaster",
+      "id": "a0987c95",
+      "position": {
+        "x": 816,
+        "y": 608
+      },
+      "size": {
+        "x": 32,
+        "y": 16
+      },
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "minShadowDistance": 5,
+      "maxShadowDistance": 20,
+      "alpha": 1
+    }
+  ],
+  "lights": [
+    {
+      "type": "Light",
+      "id": "edf1b835",
+      "position": {
+        "x": 857.3184666608095,
+        "y": 779.6780983975577
+      },
+      "radius": 400,
+      "colour": "#ffffff99",
+      "intensity": 0.2,
+      "castShadows": true
+    },
+    {
+      "type": "Light",
+      "id": "b4fc3c66",
+      "position": {
+        "x": 872.6666666665585,
+        "y": 549.666666666666
+      },
+      "radius": 43.21008112826352,
+      "colour": "#fd0",
+      "intensity": 0,
+      "castShadows": false
+    },
+    {
+      "type": "Light",
+      "id": "a09e6623",
+      "position": {
+        "x": 796.9358178053868,
+        "y": 590.8219461697712
+      },
+      "radius": 43.21008112826352,
+      "colour": "#fd0",
+      "intensity": 0,
+      "castShadows": false
+    },
+    {
+      "type": "Light",
+      "id": "03e00d02",
+      "position": {
+        "x": 1022.0508250915523,
+        "y": 813.6308990418853
+      },
+      "radius": 235.8174760617783,
+      "colour": "red",
+      "intensity": 0.2,
+      "castShadows": true
+    }
+  ]
+}
