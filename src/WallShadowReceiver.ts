@@ -178,7 +178,7 @@ export class WallShadowReceiver implements NormalMappable {
     Debug.border(`WallShadowReceiver ${this.id}`, '', this.position, {
       level: 1,
       space: 'world',
-      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
+      showLabel: this.selected || Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       labelOffset: vec(10, 30),
       size: this.size,

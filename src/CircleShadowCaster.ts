@@ -143,7 +143,7 @@ export class CircleShadowCaster implements ShadowCaster {
     Debug.border(`CircleShadowCaster ${this.id}`, '', this.position, {
       level: 1,
       space: 'world',
-      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
+      showLabel: this.selected || Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       size: this.size,
       borderColour:

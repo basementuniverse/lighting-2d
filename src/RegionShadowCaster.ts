@@ -152,7 +152,7 @@ export class RegionShadowCaster implements ShadowCaster {
     Debug.border(`RegionShadowCaster ${this.id}`, '', this.position, {
       level: 1,
       space: 'world',
-      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
+      showLabel: this.selected || Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       labelOffset: vec(10, 50),
       size: this.size,

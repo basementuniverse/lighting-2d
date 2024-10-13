@@ -172,6 +172,7 @@ export class Light {
       lightingSystem.options.normalMappingShader
     ) {
       this.normalMappingCanvas = new ShaderCanvas();
+      this.normalMappingCanvas.setSize(this._radius, this._radius);
       this.normalMappingCanvas.setShader(
         lightingSystem.options.normalMappingShader
       );
@@ -276,9 +277,9 @@ export class Light {
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
     Debug.marker(`Light ${this.id}`, this.id, this.position, {
-      level: 1,
+      level: 2,
       space: 'world',
-      showLabel: Game.DEBUG_MODES[Game.debugMode].labels,
+      showLabel: this.selected || Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
       markerImage: LightingScene.SPRITES['light'],
     });
@@ -381,7 +382,9 @@ export class Light {
 
     // If normal mapping is enabled, prepare the normal mapping canvas
     if (this.lightingSystem.options.normalMappingEnabled) {
-      this.prepareNormalMapping(camera);
+      try {
+        this.prepareNormalMapping(camera);
+      } catch (e) {}
     }
   }
 

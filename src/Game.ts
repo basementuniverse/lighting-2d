@@ -9,6 +9,10 @@ import { TestScene } from './TestScene';
 export default class Game {
   public static DEBUG_MODES = {
     none: {
+      debugLevel: 3,
+      labels: false,
+    },
+    lights: {
       debugLevel: 2,
       labels: false,
     },
@@ -77,6 +81,7 @@ export default class Game {
     Game.gui
       .add({ debugMode: Game.debugMode }, 'debugMode', [
         'none',
+        'lights',
         'borders',
         'all',
       ])
