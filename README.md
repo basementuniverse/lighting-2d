@@ -6,7 +6,35 @@ This is an experiment showing how to create a 2.5d scene with lighting and shado
 
 (the above scene is in `/samples/sample-scene-1.json`)
 
-## How to use it
+## How to run it
+
+1. Clone this repository
+
+```bash
+git clone https://github.com/basementuniverse/lighting-2d
+```
+
+2. Install dependencies
+
+```bash
+npm install
+```
+
+3. You'll need to run a local server to view the samples. You can use `http-server`:
+
+```bash
+npm install -g http-server
+```
+
+4. Run the server
+
+```bash
+npm run start
+```
+
+5. Open your browser and navigate to `http://localhost:8080`
+
+## How to integrate it
 
 A scene consists of shadow casters, shadow receivers, and lights.
 
