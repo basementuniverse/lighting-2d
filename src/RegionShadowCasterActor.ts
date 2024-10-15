@@ -1,37 +1,39 @@
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
+import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
+import { Mergeable, RegionShadowCaster } from './contracts';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
-import ShadowCaster from './ShadowCaster';
-import { clampVec, pointInRectangle, quantizeVec } from './utils';
+import {
+  clampVec,
+  maxVec,
+  minVec,
+  pointInRectangle,
+  quantizeVec,
+} from './utilities';
 
-export class CircleShadowCaster implements ShadowCaster {
+export class RegionShadowCasterActor
+  implements RegionShadowCaster, Mergeable<RegionShadowCasterActor>
+{
   private static readonly DEFAULT_SIZE = vec(64, 64);
-  private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
-  private static readonly DEFAULT_MIN_SHADOW_DISTANCE = 5;
-  private static readonly DEFAULT_MAX_SHADOW_DISTANCE = 20;
-  private static readonly DEFAULT_ALPHA = 1;
+  private static readonly DEFAULT_INCLUDE_REGION_SHADOW = false;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
   private static readonly MIN_SIZE = vec(16, 16);
   private static readonly MAX_SIZE = vec(256, 256);
 
-  public readonly type = 'CircleShadowCaster';
+  public readonly type = 'RegionShadowCaster';
 
   private scene: LightingScene;
   public id: string = '';
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = CircleShadowCaster.DEFAULT_SIZE;
-  public anchor: vec = CircleShadowCaster.DEFAULT_ANCHOR;
-  public minShadowDistance: number =
-    CircleShadowCaster.DEFAULT_MIN_SHADOW_DISTANCE;
-  public maxShadowDistance: number | null =
-    CircleShadowCaster.DEFAULT_MAX_SHADOW_DISTANCE;
-  public alpha: number = CircleShadowCaster.DEFAULT_ALPHA;
+  public size: vec = RegionShadowCasterActor.DEFAULT_SIZE;
+  public includeRegionShadow: boolean =
+    RegionShadowCasterActor.DEFAULT_INCLUDE_REGION_SHADOW;
 
   public hovered = false;
   public selected = false;
@@ -40,7 +42,7 @@ export class CircleShadowCaster implements ShadowCaster {
 
   public constructor(
     scene: LightingScene,
-    data: Partial<CircleShadowCaster> = {}
+    data: Partial<RegionShadowCasterActor> = {}
   ) {
     this.scene = scene;
 
@@ -48,30 +50,26 @@ export class CircleShadowCaster implements ShadowCaster {
       id: data.id ?? uuid().split('-')[0],
     });
 
-    this.folder = Game.gui.addFolder(`CircleShadowCaster ${this.id}`);
+    this.folder = Game.gui.addFolder(`RegionShadowCaster ${this.id}`);
     this.folder.add(this.position, 'x');
     this.folder.add(this.position, 'y');
     this.folder
       .add(
         this.size,
         'x',
-        CircleShadowCaster.MIN_SIZE.x,
-        CircleShadowCaster.MAX_SIZE.x
+        RegionShadowCasterActor.MIN_SIZE.x,
+        RegionShadowCasterActor.MAX_SIZE.x
       )
       .name('width');
     this.folder
       .add(
         this.size,
         'y',
-        CircleShadowCaster.MIN_SIZE.y,
-        CircleShadowCaster.MAX_SIZE.y
+        RegionShadowCasterActor.MIN_SIZE.y,
+        RegionShadowCasterActor.MAX_SIZE.y
       )
       .name('height');
-    this.folder.add(this.anchor, 'x').name('anchor x');
-    this.folder.add(this.anchor, 'y').name('anchor y');
-    this.folder.add(this, 'minShadowDistance');
-    this.folder.add(this, 'maxShadowDistance');
-    this.folder.add(this, 'alpha');
+    this.folder.add(this, 'includeRegionShadow');
   }
 
   public serialise(): any {
@@ -80,24 +78,37 @@ export class CircleShadowCaster implements ShadowCaster {
       id: this.id,
       position: this.position,
       size: this.size,
-      anchor: this.anchor,
-      minShadowDistance: this.minShadowDistance,
-      maxShadowDistance: this.maxShadowDistance,
-      alpha: this.alpha,
     };
   }
 
   public static deserialise(
     scene: LightingScene,
     data: any
-  ): CircleShadowCaster {
-    return new CircleShadowCaster(scene, data);
+  ): RegionShadowCasterActor {
+    return new RegionShadowCasterActor(scene, data);
   }
 
   public destroy() {
     if (this.folder) {
       Game.gui.removeFolder(this.folder);
     }
+  }
+
+  public merge(
+    other: RegionShadowCasterActor,
+    scene: LightingScene
+  ): RegionShadowCasterActor {
+    const position = minVec(this.position, other.position);
+    const br = maxVec(
+      vec.add(this.position, this.size),
+      vec.add(other.position, other.size)
+    );
+
+    return new RegionShadowCasterActor(scene, {
+      ...exclude(this.serialise(), 'id'),
+      position,
+      size: vec.sub(br, position),
+    });
   }
 
   public update(dt: number) {
@@ -128,8 +139,8 @@ export class CircleShadowCaster implements ShadowCaster {
         }
         this.size = clampVec(
           newSize,
-          CircleShadowCaster.MIN_SIZE,
-          CircleShadowCaster.MAX_SIZE
+          RegionShadowCasterActor.MIN_SIZE,
+          RegionShadowCasterActor.MAX_SIZE
         );
       } else {
         let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
@@ -140,16 +151,17 @@ export class CircleShadowCaster implements ShadowCaster {
       }
     }
 
-    Debug.border(`CircleShadowCaster ${this.id}`, '', this.position, {
+    Debug.border(`RegionShadowCaster ${this.id}`, '', this.position, {
       level: 1,
       space: 'world',
       showLabel: this.selected || Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
+      labelOffset: vec(10, 50),
       size: this.size,
       borderColour:
         this.hovered || this.dragging
-          ? CircleShadowCaster.DEBUG_HOVER_COLOUR
-          : CircleShadowCaster.DEBUG_COLOUR,
+          ? RegionShadowCasterActor.DEBUG_HOVER_COLOUR
+          : RegionShadowCasterActor.DEBUG_COLOUR,
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }

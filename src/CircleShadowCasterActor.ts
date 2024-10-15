@@ -4,35 +4,33 @@ import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
-import ShadowCaster from './ShadowCaster';
-import { clampVec, pointInRectangle, quantizeVec } from './utils';
+import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
-export class SpriteShadowCaster implements ShadowCaster {
+export class CircleShadowCasterActor implements CircleShadowCasterActor {
   private static readonly DEFAULT_SIZE = vec(64, 64);
-  private static readonly DEFAULT_SHADOW_NAME = 'character-shadow';
   private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
-  private static readonly DEFAULT_OFFSET = vec(0.5, 0.9);
-  private static readonly DEFAULT_MIN_SHADOW_LENGTH = 64;
-  private static readonly DEFAULT_MAX_SHADOW_LENGTH = 64;
+  private static readonly DEFAULT_MIN_SHADOW_DISTANCE = 5;
+  private static readonly DEFAULT_MAX_SHADOW_DISTANCE = 20;
+  private static readonly DEFAULT_ALPHA = 1;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
   private static readonly MIN_SIZE = vec(16, 16);
   private static readonly MAX_SIZE = vec(256, 256);
 
-  public readonly type = 'SpriteShadowCaster';
+  public readonly type = 'CircleShadowCaster';
 
   private scene: LightingScene;
   public id: string = '';
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = SpriteShadowCaster.DEFAULT_SIZE;
-  public shadowName: string = SpriteShadowCaster.DEFAULT_SHADOW_NAME;
-  public anchor: vec = SpriteShadowCaster.DEFAULT_ANCHOR;
-  public offset: vec = SpriteShadowCaster.DEFAULT_OFFSET;
-  public minShadowLength: number = SpriteShadowCaster.DEFAULT_MIN_SHADOW_LENGTH;
-  public maxShadowLength: number | null =
-    SpriteShadowCaster.DEFAULT_MAX_SHADOW_LENGTH;
+  public size: vec = CircleShadowCasterActor.DEFAULT_SIZE;
+  public anchor: vec = CircleShadowCasterActor.DEFAULT_ANCHOR;
+  public minShadowDistance: number =
+    CircleShadowCasterActor.DEFAULT_MIN_SHADOW_DISTANCE;
+  public maxShadowDistance: number | null =
+    CircleShadowCasterActor.DEFAULT_MAX_SHADOW_DISTANCE;
+  public alpha: number = CircleShadowCasterActor.DEFAULT_ALPHA;
 
   public hovered = false;
   public selected = false;
@@ -41,7 +39,7 @@ export class SpriteShadowCaster implements ShadowCaster {
 
   public constructor(
     scene: LightingScene,
-    data: Partial<SpriteShadowCaster> = {}
+    data: Partial<CircleShadowCasterActor> = {}
   ) {
     this.scene = scene;
 
@@ -49,36 +47,30 @@ export class SpriteShadowCaster implements ShadowCaster {
       id: data.id ?? uuid().split('-')[0],
     });
 
-    this.folder = Game.gui.addFolder(`SpriteShadowCaster ${this.id}`);
+    this.folder = Game.gui.addFolder(`CircleShadowCaster ${this.id}`);
     this.folder.add(this.position, 'x');
     this.folder.add(this.position, 'y');
     this.folder
       .add(
         this.size,
         'x',
-        SpriteShadowCaster.MIN_SIZE.x,
-        SpriteShadowCaster.MAX_SIZE.x
+        CircleShadowCasterActor.MIN_SIZE.x,
+        CircleShadowCasterActor.MAX_SIZE.x
       )
       .name('width');
     this.folder
       .add(
         this.size,
         'y',
-        SpriteShadowCaster.MIN_SIZE.y,
-        SpriteShadowCaster.MAX_SIZE.y
+        CircleShadowCasterActor.MIN_SIZE.y,
+        CircleShadowCasterActor.MAX_SIZE.y
       )
       .name('height');
-    this.folder.add(this, 'shadowName');
     this.folder.add(this.anchor, 'x').name('anchor x');
     this.folder.add(this.anchor, 'y').name('anchor y');
-    this.folder.add(this.offset, 'x').name('offset x');
-    this.folder.add(this.offset, 'y').name('offset y');
-    this.folder.add(this, 'minShadowLength');
-    this.folder.add(this, 'maxShadowLength');
-  }
-
-  public get shadow(): HTMLImageElement | null {
-    return LightingScene.SPRITES[this.shadowName] ?? null;
+    this.folder.add(this, 'minShadowDistance');
+    this.folder.add(this, 'maxShadowDistance');
+    this.folder.add(this, 'alpha');
   }
 
   public serialise(): any {
@@ -87,19 +79,18 @@ export class SpriteShadowCaster implements ShadowCaster {
       id: this.id,
       position: this.position,
       size: this.size,
-      shadowName: this.shadowName,
       anchor: this.anchor,
-      offset: this.offset,
-      minShadowLength: this.minShadowLength,
-      maxShadowLength: this.maxShadowLength,
+      minShadowDistance: this.minShadowDistance,
+      maxShadowDistance: this.maxShadowDistance,
+      alpha: this.alpha,
     };
   }
 
   public static deserialise(
     scene: LightingScene,
     data: any
-  ): SpriteShadowCaster {
-    return new SpriteShadowCaster(scene, data);
+  ): CircleShadowCasterActor {
+    return new CircleShadowCasterActor(scene, data);
   }
 
   public destroy() {
@@ -136,8 +127,8 @@ export class SpriteShadowCaster implements ShadowCaster {
         }
         this.size = clampVec(
           newSize,
-          SpriteShadowCaster.MIN_SIZE,
-          SpriteShadowCaster.MAX_SIZE
+          CircleShadowCasterActor.MIN_SIZE,
+          CircleShadowCasterActor.MAX_SIZE
         );
       } else {
         let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
@@ -148,7 +139,7 @@ export class SpriteShadowCaster implements ShadowCaster {
       }
     }
 
-    Debug.border(`SpriteShadowCaster ${this.id}`, '', this.position, {
+    Debug.border(`CircleShadowCaster ${this.id}`, '', this.position, {
       level: 1,
       space: 'world',
       showLabel: this.selected || Game.DEBUG_MODES[Game.debugMode].labels,
@@ -156,8 +147,8 @@ export class SpriteShadowCaster implements ShadowCaster {
       size: this.size,
       borderColour:
         this.hovered || this.dragging
-          ? SpriteShadowCaster.DEBUG_HOVER_COLOUR
-          : SpriteShadowCaster.DEBUG_COLOUR,
+          ? CircleShadowCasterActor.DEBUG_HOVER_COLOUR
+          : CircleShadowCasterActor.DEBUG_COLOUR,
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }

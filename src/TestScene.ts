@@ -7,7 +7,7 @@ import Game from './Game';
 import { Light } from './Light';
 import { LightingScene } from './LightingScene';
 import { LightingSystem } from './LightingSystem';
-import { RegionShadowCaster } from './RegionShadowCaster';
+import { RegionShadowCasterActor } from './RegionShadowCasterActor';
 import { Line, Rectangle, Sector2d } from './types';
 import {
   lineInRectangle,
@@ -17,8 +17,8 @@ import {
   rectangleVertices,
   rectanglesIntersect,
   sector2d,
-} from './utils';
-import { WallShadowReceiver } from './WallShadowReceiver';
+} from './utilities';
+import { WallShadowReceiverActor } from './WallShadowReceiverActor';
 
 export class TestScene {
   private TEST_RECT: Rectangle = {
@@ -32,8 +32,8 @@ export class TestScene {
   private lineStart: vec | null = null;
   private lineEnd: vec | null = null;
 
-  private caster: RegionShadowCaster;
-  private receiver: WallShadowReceiver;
+  private caster: RegionShadowCasterActor;
+  private receiver: WallShadowReceiverActor;
   private light: Light;
 
   public initialise() {
@@ -44,14 +44,20 @@ export class TestScene {
       scaleEaseAmount: 0.95,
     });
 
-    this.caster = new RegionShadowCaster(this as unknown as LightingScene, {
-      position: vec(200, 500),
-      size: vec(100, 100),
-    });
-    this.receiver = new WallShadowReceiver(this as unknown as LightingScene, {
-      position: vec(350, 500),
-      size: vec(100, 100),
-    });
+    this.caster = new RegionShadowCasterActor(
+      this as unknown as LightingScene,
+      {
+        position: vec(200, 500),
+        size: vec(100, 100),
+      }
+    );
+    this.receiver = new WallShadowReceiverActor(
+      this as unknown as LightingScene,
+      {
+        position: vec(350, 500),
+        size: vec(100, 100),
+      }
+    );
     this.light = new Light(
       this as unknown as LightingScene,
       {

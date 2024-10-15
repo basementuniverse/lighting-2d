@@ -1,17 +1,13 @@
 import Camera from '@basementuniverse/camera';
 import { pluck } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
-import { CircleShadowCaster } from './CircleShadowCaster';
+import { CircleShadowCaster, GroundShadowReceiver, Mergeable, NormalMappable, RegionShadowCaster, SpriteShadowCaster, WallShadowReceiver } from './contracts';
+import { ShadowCaster } from './contracts/ShadowCaster';
+import { ShadowReceiver } from './contracts/ShadowReceiver';
 import Game from './Game';
-import { GroundShadowReceiver } from './GroundShadowReceiver';
 import { Light } from './Light';
-import { LightingScene } from './LightingScene';
-import NormalMappable from './NormalMappable';
-import { RegionShadowCaster } from './RegionShadowCaster';
-import { SpriteShadowCaster } from './SpriteShadowCaster';
 import { Side, WallShadowLayer } from './types';
-import { rectangleToInterval } from './utils';
-import { WallShadowReceiver } from './WallShadowReceiver';
+import { rectangleToInterval } from './utilities';
 
 type LightingSystemOptions = {
   /**
@@ -458,13 +454,16 @@ export class LightingSystem {
   }
 
   /**
-   * Optimise region shadow casters by merging adjacent casters
+   * Optimise shadow casters or receivers by merging items that are adjacent to
+   * each other and perfectly connected on one side
    */
-  public static mergeRegionShadowCasters(
-    scene: LightingScene,
-    casters: RegionShadowCaster[]
-  ): RegionShadowCaster[] {
-    let result = [...casters].sort((a, b) => {
+  public static merge<T extends ShadowCaster | ShadowReceiver>(
+    items: T[],
+    compare?: (a: T, b: T) => boolean,
+    ...args: any[]
+  ): T[] {
+    // Sort items by y-position then x-position
+    let result = [...items].sort((a, b) => {
       if (a.position.y === b.position.y) {
         return a.position.x - b.position.x;
       }
@@ -473,11 +472,13 @@ export class LightingSystem {
     });
 
     let i = 0;
-    let merges: [RegionShadowCaster, RegionShadowCaster, Side | 'duplicate'][];
+    let merges: [T, T, Side | 'duplicate'][];
     while (
-      (merges = LightingSystem.findMerges(result)).length > 0 &&
+      (merges = LightingSystem.findMerges(result, compare)).length > 0 &&
       i++ < LightingSystem.MERGE_MAX_ITERATIONS
     ) {
+      // Merge items in a specific order (e.g. items that connect on the
+      // bottom face first, or items that are exact duplicates first, etc.)
       merges.sort(
         (a, b) =>
           LightingSystem.MERGE_ORDER.indexOf(a[2]) -
@@ -488,7 +489,14 @@ export class LightingSystem {
         const b = result.find(caster => caster.id === merge[1].id);
         const side = merge[2];
 
+        // Make sure the items still exist (they might have been merged and
+        // removed in a previous iteration)
         if (a === undefined || b === undefined) {
+          continue;
+        }
+
+        // Make sure both items are mergeable
+        if (!this.isStrictlyMergeable(a) || !this.isMaybeMergeable(b)) {
           continue;
         }
 
@@ -498,62 +506,7 @@ export class LightingSystem {
         }
 
         result = result.filter(caster => ![a.id, b.id].includes(caster.id));
-        result.push(a.merge(scene, b));
-        a.destroy();
-        b.destroy();
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Optimise wall shadow receivers by merging adjacent receivers
-   */
-  public static mergeWallShadowReceivers(
-    scene: LightingScene,
-    receivers: WallShadowReceiver[]
-  ): WallShadowReceiver[] {
-    let result = [...receivers].sort((a, b) => {
-      if (a.position.y === b.position.y) {
-        return a.position.x - b.position.x;
-      }
-
-      return a.position.y - b.position.y;
-    });
-
-    let i = 0;
-    let merges: [WallShadowReceiver, WallShadowReceiver, Side | 'duplicate'][];
-    while (
-      (merges = LightingSystem.findMerges(
-        result,
-        (a, b) => a.colour === b.colour && a.receiveLight === b.receiveLight
-      )).length > 0 &&
-      i++ < LightingSystem.MERGE_MAX_ITERATIONS
-    ) {
-      merges.sort(
-        (a, b) =>
-          LightingSystem.MERGE_ORDER.indexOf(a[2]) -
-          LightingSystem.MERGE_ORDER.indexOf(b[2])
-      );
-      for (const merge of merges) {
-        const a = result.find(receiver => receiver.id === merge[0].id);
-        const b = result.find(receiver => receiver.id === merge[1].id);
-        const side = merge[2];
-
-        if (a === undefined || b === undefined) {
-          continue;
-        }
-
-        if (side === 'duplicate') {
-          result = result.filter(receiver => receiver.id !== b.id);
-          continue;
-        }
-
-        result = result.filter(receiver => ![a.id, b.id].includes(receiver.id));
-        result.push(a.merge(scene, b));
-        a.destroy();
-        b.destroy();
+        result.push(a.merge(b, ...args));
       }
     }
 
@@ -565,7 +518,7 @@ export class LightingSystem {
    */
   private static findMerges<T extends { position: vec; size: vec }>(
     items: T[],
-    extraComparison?: (a: T, b: T) => boolean
+    compare?: (a: T, b: T) => boolean
   ): [T, T, Side | 'duplicate'][] {
     const result: [T, T, Side | 'duplicate'][] = [];
 
@@ -581,7 +534,7 @@ export class LightingSystem {
           a.bottom === b.bottom &&
           a.left === b.left &&
           a.right === b.right &&
-          (extraComparison?.(items[i], items[j]) ?? true)
+          (compare?.(items[i], items[j]) ?? true)
         ) {
           result.push([items[i], items[j], 'duplicate']);
           continue;
@@ -592,7 +545,7 @@ export class LightingSystem {
           a.bottom === b.top &&
           a.left === b.left &&
           a.right === b.right &&
-          (extraComparison?.(items[i], items[j]) ?? true)
+          (compare?.(items[i], items[j]) ?? true)
         ) {
           result.push([items[i], items[j], Side.Bottom]);
         }
@@ -602,7 +555,7 @@ export class LightingSystem {
           a.top === b.bottom &&
           a.left === b.left &&
           a.right === b.right &&
-          (extraComparison?.(items[i], items[j]) ?? true)
+          (compare?.(items[i], items[j]) ?? true)
         ) {
           result.push([items[i], items[j], Side.Top]);
         }
@@ -612,7 +565,7 @@ export class LightingSystem {
           a.right === b.left &&
           a.top === b.top &&
           a.bottom === b.bottom &&
-          (extraComparison?.(items[i], items[j]) ?? true)
+          (compare?.(items[i], items[j]) ?? true)
         ) {
           result.push([items[i], items[j], Side.Right]);
         }
@@ -622,7 +575,7 @@ export class LightingSystem {
           a.left === b.right &&
           a.top === b.top &&
           a.bottom === b.bottom &&
-          (extraComparison?.(items[i], items[j]) ?? true)
+          (compare?.(items[i], items[j]) ?? true)
         ) {
           result.push([items[i], items[j], Side.Left]);
         }
@@ -630,5 +583,20 @@ export class LightingSystem {
     }
 
     return result;
+  }
+
+  /**
+   * Type guard to check if an object implements the Mergeable interface
+   */
+  private static isMaybeMergeable(a: any): a is Mergeable<any> {
+    return 'merge' in a;
+  }
+
+  /**
+   * Type guard to check if an object implements the Mergeable interface and
+   * has a merge method
+   */
+  private static isStrictlyMergeable(a: any): a is Required<Mergeable<any>> {
+    return 'merge' in a && a.merge !== undefined;
   }
 }

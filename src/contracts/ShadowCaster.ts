@@ -1,6 +1,9 @@
 import { vec } from '@basementuniverse/vec';
 
-export default interface ShadowCaster {
+/**
+ * An object that casts a shadow
+ */
+export interface ShadowCaster {
   id: string;
   position: vec;
   size: vec;

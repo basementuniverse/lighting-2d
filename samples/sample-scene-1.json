@@ -435,9 +435,9 @@
       "receiveLight": true,
       "spriteName": "sign",
       "maskName": "sign-mask",
-      "normalMapName": "",
+      "normalMapName": "sign-normal",
       "spriteRepeat": false,
-      "layer": "one"
+      "layer": "two"
     },
     {
       "type": "WallShadowReceiver",

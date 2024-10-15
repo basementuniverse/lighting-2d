@@ -3,14 +3,14 @@ import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
-import { CircleShadowCaster } from './CircleShadowCaster';
+import { CircleShadowCasterActor } from './CircleShadowCasterActor';
 import Game from './Game';
-import { GroundShadowReceiver } from './GroundShadowReceiver';
+import { GroundShadowReceiverActor } from './GroundShadowReceiverActor';
 import { Light } from './Light';
 import { LightingSystem } from './LightingSystem';
-import { RegionShadowCaster } from './RegionShadowCaster';
-import { SpriteShadowCaster } from './SpriteShadowCaster';
-import { WallShadowReceiver } from './WallShadowReceiver';
+import { RegionShadowCasterActor } from './RegionShadowCasterActor';
+import { SpriteShadowCasterActor } from './SpriteShadowCasterActor';
+import { WallShadowReceiverActor } from './WallShadowReceiverActor';
 
 enum LightingSceneRenderMode {
   NoLighting = 'nolighting',
@@ -39,23 +39,23 @@ export class LightingScene {
   public camera: Camera;
   public lightingSystem: LightingSystem;
 
-  private groundShadowReceivers: GroundShadowReceiver[] = [];
-  private wallShadowReceivers: WallShadowReceiver[] = [];
-  private regionShadowCasters: RegionShadowCaster[] = [];
-  private spriteShadowCasters: SpriteShadowCaster[] = [];
-  private circleShadowCasters: CircleShadowCaster[] = [];
+  private groundShadowReceivers: GroundShadowReceiverActor[] = [];
+  private wallShadowReceivers: WallShadowReceiverActor[] = [];
+  private regionShadowCasters: RegionShadowCasterActor[] = [];
+  private spriteShadowCasters: SpriteShadowCasterActor[] = [];
+  private circleShadowCasters: CircleShadowCasterActor[] = [];
 
   private selected:
-    | GroundShadowReceiver
-    | WallShadowReceiver
-    | RegionShadowCaster
-    | SpriteShadowCaster
-    | CircleShadowCaster
+    | GroundShadowReceiverActor
+    | WallShadowReceiverActor
+    | RegionShadowCasterActor
+    | SpriteShadowCasterActor
+    | CircleShadowCasterActor
     | Light
     | null = null;
 
   public mode: LightingSceneRenderMode = LightingSceneRenderMode.Normal;
-  public showHelp: boolean = true;
+  public showHelp: boolean = false;
   public ready: boolean = false;
 
   public initialise() {
@@ -111,17 +111,18 @@ export class LightingScene {
           .add(
             {
               click: () => {
-                this.wallShadowReceivers =
-                  LightingSystem.mergeWallShadowReceivers(
-                    this,
-                    this.wallShadowReceivers
-                  );
+                this.wallShadowReceivers = LightingSystem.merge(
+                  this.wallShadowReceivers,
+                  (a, b) =>
+                    a.colour === b.colour && a.receiveLight === b.receiveLight,
+                  this
+                );
 
-                this.regionShadowCasters =
-                  LightingSystem.mergeRegionShadowCasters(
-                    this,
-                    this.regionShadowCasters
-                  );
+                this.regionShadowCasters = LightingSystem.merge(
+                  this.regionShadowCasters,
+                  undefined,
+                  this
+                );
               },
             },
             'click'
@@ -226,6 +227,11 @@ export class LightingScene {
     this.loadImage('../images/ground1-normal.png', 'ground1-normal');
     this.loadImage('../images/ground2.png', 'ground2');
     this.loadImage('../images/ground2-normal.png', 'ground2-normal');
+    this.loadImage('../images/ground3.png', 'ground3');
+    this.loadImage('../images/ground3-normal.png', 'ground3-normal');
+    this.loadImage('../images/ground4.png', 'ground4');
+    this.loadImage('../images/ground4-normal.png', 'ground4-normal');
+    this.loadImage('../images/ground4-specular.png', 'ground4-specular');
     this.loadImage('../images/wall1.png', 'wall1');
     this.loadImage('../images/wall1-mask.png', 'wall1-mask');
     this.loadImage('../images/wall1-normal.png', 'wall1-normal');
@@ -235,12 +241,18 @@ export class LightingScene {
     this.loadImage('../images/wall-top.png', 'wall-top');
     this.loadImage('../images/anvil.png', 'anvil');
     this.loadImage('../images/anvil-mask.png', 'anvil-mask');
-    this.loadImage('../images/barrel.png', 'barrel');
-    this.loadImage('../images/barrel-mask.png', 'barrel-mask');
+    this.loadImage('../images/anvil-normal.png', 'anvil-normal');
+    this.loadImage('../images/anvil-specular.png', 'anvil-specular');
     this.loadImage('../images/sign.png', 'sign');
     this.loadImage('../images/sign-mask.png', 'sign-mask');
+    this.loadImage('../images/sign-normal.png', 'sign-normal');
     this.loadImage('../images/well.png', 'well');
     this.loadImage('../images/well-mask.png', 'well-mask');
+    this.loadImage('../images/well-normal.png', 'well-normal');
+    this.loadImage('../images/urn.png', 'url');
+    this.loadImage('../images/urn-mask.png', 'url-mask');
+    this.loadImage('../images/urn-normal.png', 'url-normal');
+    this.loadImage('../images/urn-specular.png', 'urn-specular');
   }
 
   private store() {
@@ -311,27 +323,27 @@ export class LightingScene {
 
     this.groundShadowReceivers.forEach(g => g.destroy());
     this.groundShadowReceivers = state.groundShadowReceivers.map((g: any) =>
-      GroundShadowReceiver.deserialise(this, g)
+      GroundShadowReceiverActor.deserialise(this, g)
     );
 
     this.wallShadowReceivers.forEach(w => w.destroy());
     this.wallShadowReceivers = state.wallShadowReceivers.map((w: any) =>
-      WallShadowReceiver.deserialise(this, w)
+      WallShadowReceiverActor.deserialise(this, w)
     );
 
     this.regionShadowCasters.forEach(r => r.destroy());
     this.regionShadowCasters = state.regionShadowCasters.map((r: any) =>
-      RegionShadowCaster.deserialise(this, r)
+      RegionShadowCasterActor.deserialise(this, r)
     );
 
     this.spriteShadowCasters.forEach(s => s.destroy());
     this.spriteShadowCasters = state.spriteShadowCasters.map((s: any) =>
-      SpriteShadowCaster.deserialise(this, s)
+      SpriteShadowCasterActor.deserialise(this, s)
     );
 
     this.circleShadowCasters.forEach(c => c.destroy());
     this.circleShadowCasters = state.circleShadowCasters.map((c: any) =>
-      CircleShadowCaster.deserialise(this, c)
+      CircleShadowCasterActor.deserialise(this, c)
     );
 
     this.lightingSystem.lights.forEach(light => light.destroy());
@@ -483,8 +495,16 @@ export class LightingScene {
         light.selected = false;
       });
 
+      Object.values(Game.gui.__folders).forEach(folder => {
+        folder.domElement.classList.remove('selected');
+      });
+
       if (this.selected) {
         this.selected.selected = true;
+
+        Game.gui.__folders[
+          `${this.selected.type} ${this.selected.id}`
+        ].domElement.classList.add('selected');
       }
     }
 
@@ -493,7 +513,7 @@ export class LightingScene {
       // Create GroundShadowReceiver
       if (InputManager.keyPressed('KeyG')) {
         this.groundShadowReceivers.push(
-          new GroundShadowReceiver(this, {
+          new GroundShadowReceiverActor(this, {
             position: vec.cpy(mouseWorldPosition),
           })
         );
@@ -502,7 +522,7 @@ export class LightingScene {
       // Create WallShadowReceiver
       if (InputManager.keyPressed('KeyW')) {
         this.wallShadowReceivers.push(
-          new WallShadowReceiver(this, {
+          new WallShadowReceiverActor(this, {
             position: vec.cpy(mouseWorldPosition),
           })
         );
@@ -511,7 +531,7 @@ export class LightingScene {
       // Create WallShadowReceiver
       if (InputManager.keyPressed('KeyR')) {
         this.regionShadowCasters.push(
-          new RegionShadowCaster(this, {
+          new RegionShadowCasterActor(this, {
             position: vec.cpy(mouseWorldPosition),
           })
         );
@@ -520,7 +540,7 @@ export class LightingScene {
       // Create WallShadowReceiver
       if (InputManager.keyPressed('KeyS')) {
         this.spriteShadowCasters.push(
-          new SpriteShadowCaster(this, {
+          new SpriteShadowCasterActor(this, {
             position: vec.cpy(mouseWorldPosition),
           })
         );
@@ -529,7 +549,7 @@ export class LightingScene {
       // Create WallShadowReceiver
       if (InputManager.keyPressed('KeyC')) {
         this.circleShadowCasters.push(
-          new CircleShadowCaster(this, {
+          new CircleShadowCasterActor(this, {
             position: vec.cpy(mouseWorldPosition),
           })
         );
@@ -554,7 +574,7 @@ export class LightingScene {
       switch (this.selected.type) {
         case 'GroundShadowReceiver':
           this.groundShadowReceivers.push(
-            GroundShadowReceiver.deserialise(this, {
+            GroundShadowReceiverActor.deserialise(this, {
               ...exclude(this.selected.serialise(), 'id', 'position'),
               position: vec.cpy(mouseWorldPosition),
             })
@@ -563,7 +583,7 @@ export class LightingScene {
 
         case 'WallShadowReceiver':
           this.wallShadowReceivers.push(
-            WallShadowReceiver.deserialise(this, {
+            WallShadowReceiverActor.deserialise(this, {
               ...exclude(this.selected.serialise(), 'id', 'position'),
               position: vec.cpy(mouseWorldPosition),
             })
@@ -572,7 +592,7 @@ export class LightingScene {
 
         case 'RegionShadowCaster':
           this.regionShadowCasters.push(
-            RegionShadowCaster.deserialise(this, {
+            RegionShadowCasterActor.deserialise(this, {
               ...exclude(this.selected.serialise(), 'id', 'position'),
               position: vec.cpy(mouseWorldPosition),
             })
@@ -581,7 +601,7 @@ export class LightingScene {
 
         case 'SpriteShadowCaster':
           this.spriteShadowCasters.push(
-            SpriteShadowCaster.deserialise(this, {
+            SpriteShadowCasterActor.deserialise(this, {
               ...exclude(this.selected.serialise(), 'id', 'position'),
               position: vec.cpy(mouseWorldPosition),
             })
@@ -590,7 +610,7 @@ export class LightingScene {
 
         case 'CircleShadowCaster':
           this.circleShadowCasters.push(
-            CircleShadowCaster.deserialise(this, {
+            CircleShadowCasterActor.deserialise(this, {
               ...exclude(this.selected.serialise(), 'id', 'position'),
               position: vec.cpy(mouseWorldPosition),
             })

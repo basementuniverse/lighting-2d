@@ -13,15 +13,18 @@ import {
 import { vec } from '@basementuniverse/vec';
 import { ShaderCanvas } from 'shader-canvas';
 import { v4 as uuid } from 'uuid';
-import { CircleShadowCaster } from './CircleShadowCaster';
 import * as constants from './constants';
+import {
+  CircleShadowCaster,
+  GroundShadowReceiver,
+  RegionShadowCaster,
+  ShadowCaster,
+  SpriteShadowCaster,
+  WallShadowReceiver,
+} from './contracts';
 import Game from './Game';
-import { GroundShadowReceiver } from './GroundShadowReceiver';
 import { LightingScene } from './LightingScene';
 import { LightingSystem } from './LightingSystem';
-import { RegionShadowCaster } from './RegionShadowCaster';
-import ShadowCaster from './ShadowCaster';
-import { SpriteShadowCaster } from './SpriteShadowCaster';
 import {
   Colour,
   Interval2d,
@@ -41,8 +44,7 @@ import {
   rectangleToInterval,
   rectangleVertices,
   sector2d,
-} from './utils';
-import { WallShadowReceiver } from './WallShadowReceiver';
+} from './utilities';
 
 const INTERCEPT_X = 0;
 const INTERCEPT_T = 1;
@@ -172,7 +174,9 @@ export class Light {
       lightingSystem.options.normalMappingShader
     ) {
       this.normalMappingCanvas = new ShaderCanvas();
-      this.normalMappingCanvas.setSize(this._radius, this._radius);
+
+      const s = (this._radius * 2) / window.devicePixelRatio;
+      this.normalMappingCanvas.setSize(s, s);
       this.normalMappingCanvas.setShader(
         lightingSystem.options.normalMappingShader
       );
@@ -1586,67 +1590,69 @@ export class Light {
   }
 
   private prepareNormalMapping(camera: Camera) {
-    if (this.normalMappingCanvas) {
-      const lightTopLeftScreenPosition = camera.worldToScreen(
-        vec.sub(this.position, vec(this._radius))
-      );
-      const lightBottomRightScreenPosition = camera.worldToScreen(
-        vec.add(this.position, vec(this._radius))
-      );
-
-      this.normalMappingCanvas.setSize(this._radius, this._radius);
-      this.normalMappingCanvas.setUniform('u_resolution', [
-        this._radius * 2,
-        this._radius * 2,
-      ]);
-      this.normalMappingCanvas.setUniform('u_lightColour', [
-        this.colourObject.r / 255,
-        this.colourObject.g / 255,
-        this.colourObject.b / 255,
-        this.colourObject.a,
-      ]);
-      this.normalMappingCanvas.setUniform('u_lightScreenPositionTopLeft', [
-        lightTopLeftScreenPosition.x / Game.screen.x,
-        lightTopLeftScreenPosition.y / Game.screen.y,
-      ]);
-      this.normalMappingCanvas.setUniform('u_lightScreenPositionBottomRight', [
-        lightBottomRightScreenPosition.x / Game.screen.x,
-        lightBottomRightScreenPosition.y / Game.screen.y,
-      ]);
-      this.normalMappingCanvas.setUniform(
-        'u_wallLightingYOffset',
-        this.lightingSystem.options.wallLightingYOffset
-      );
-      this.normalMappingCanvas.setTexture(
-        'u_sceneNormalMap',
-        this.lightingSystem.sceneNormalMapCanvas as unknown as HTMLImageElement
-      );
-      this.normalMappingCanvas.setTexture(
-        'u_groundLightMap',
-        this.groundLightCanvas as unknown as HTMLImageElement
-      );
-      this.normalMappingCanvas.setTexture(
-        'u_wall1LightMap',
-        this.wallLight1Canvas as unknown as HTMLImageElement
-      );
-      this.normalMappingCanvas.setTexture(
-        'u_wall2LightMap',
-        this.wallLight2Canvas as unknown as HTMLImageElement
-      );
-      this.normalMappingCanvas.setTexture(
-        'u_groundMask',
-        this.lightingSystem.groundMaskCanvas as unknown as HTMLImageElement
-      );
-      this.normalMappingCanvas.setTexture(
-        'u_wall1Mask',
-        this.lightingSystem.wallMask1Canvas as unknown as HTMLImageElement
-      );
-      this.normalMappingCanvas.setTexture(
-        'u_wall2Mask',
-        this.lightingSystem.wallMask2Canvas as unknown as HTMLImageElement
-      );
-
-      this.normalMappingCanvas.render();
+    if (!this.normalMappingCanvas) {
+      return;
     }
+
+    const lightTopLeftScreenPosition = camera.worldToScreen(
+      vec.sub(this.position, vec(this._radius))
+    );
+    const lightBottomRightScreenPosition = camera.worldToScreen(
+      vec.add(this.position, vec(this._radius))
+    );
+
+    const s = (this._radius * 2) / window.devicePixelRatio;
+    this.normalMappingCanvas.setSize(s, s);
+    this.normalMappingCanvas.setUniform('u_resolution', [
+      this._radius * 2,
+      this._radius * 2,
+    ]);
+    this.normalMappingCanvas.setUniform('u_lightColour', [
+      this.colourObject.r / 255,
+      this.colourObject.g / 255,
+      this.colourObject.b / 255,
+      this.colourObject.a,
+    ]);
+    this.normalMappingCanvas.setUniform('u_lightScreenPositionTopLeft', [
+      lightTopLeftScreenPosition.x / Game.screen.x,
+      lightTopLeftScreenPosition.y / Game.screen.y,
+    ]);
+    this.normalMappingCanvas.setUniform('u_lightScreenPositionBottomRight', [
+      lightBottomRightScreenPosition.x / Game.screen.x,
+      lightBottomRightScreenPosition.y / Game.screen.y,
+    ]);
+    this.normalMappingCanvas.setUniform(
+      'u_wallLightingYOffset',
+      this.lightingSystem.options.wallLightingYOffset
+    );
+    this.normalMappingCanvas.setTexture(
+      'u_sceneNormalMap',
+      this.lightingSystem.sceneNormalMapCanvas as unknown as HTMLImageElement
+    );
+    this.normalMappingCanvas.setTexture(
+      'u_groundLightMap',
+      this.groundLightCanvas as unknown as HTMLImageElement
+    );
+    this.normalMappingCanvas.setTexture(
+      'u_wall1LightMap',
+      this.wallLight1Canvas as unknown as HTMLImageElement
+    );
+    this.normalMappingCanvas.setTexture(
+      'u_wall2LightMap',
+      this.wallLight2Canvas as unknown as HTMLImageElement
+    );
+    this.normalMappingCanvas.setTexture(
+      'u_groundMask',
+      this.lightingSystem.groundMaskCanvas as unknown as HTMLImageElement
+    );
+    this.normalMappingCanvas.setTexture(
+      'u_wall1Mask',
+      this.lightingSystem.wallMask1Canvas as unknown as HTMLImageElement
+    );
+    this.normalMappingCanvas.setTexture(
+      'u_wall2Mask',
+      this.lightingSystem.wallMask2Canvas as unknown as HTMLImageElement
+    );
+    this.normalMappingCanvas.render();
   }
 }

@@ -2,13 +2,15 @@ import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
+import { NormalMappable, ShadowReceiver } from './contracts';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
 import { LightingSystem } from './LightingSystem';
-import NormalMappable from './NormalMappable';
-import { clampVec, pointInRectangle, quantizeVec } from './utils';
+import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
-export class GroundShadowReceiver implements NormalMappable {
+export class GroundShadowReceiverActor
+  implements ShadowReceiver, NormalMappable
+{
   private static readonly DEFAULT_SIZE = vec(256, 256);
   private static readonly DEFAULT_COLOUR = '#ddd';
   private static readonly DEFAULT_SPRITE_NAME = 'ground1';
@@ -25,10 +27,11 @@ export class GroundShadowReceiver implements NormalMappable {
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = GroundShadowReceiver.DEFAULT_SIZE;
-  public colour: string = GroundShadowReceiver.DEFAULT_COLOUR;
-  public spriteName: string = GroundShadowReceiver.DEFAULT_SPRITE_NAME;
-  public normalMapName: string = GroundShadowReceiver.DEFAULT_NORMAL_MAP_NAME;
+  public size: vec = GroundShadowReceiverActor.DEFAULT_SIZE;
+  public colour: string = GroundShadowReceiverActor.DEFAULT_COLOUR;
+  public spriteName: string = GroundShadowReceiverActor.DEFAULT_SPRITE_NAME;
+  public normalMapName: string =
+    GroundShadowReceiverActor.DEFAULT_NORMAL_MAP_NAME;
 
   public hovered = false;
   public selected = false;
@@ -37,7 +40,7 @@ export class GroundShadowReceiver implements NormalMappable {
 
   public constructor(
     scene: LightingScene,
-    data: Partial<GroundShadowReceiver> = {}
+    data: Partial<GroundShadowReceiverActor> = {}
   ) {
     this.scene = scene;
 
@@ -52,16 +55,16 @@ export class GroundShadowReceiver implements NormalMappable {
       .add(
         this.size,
         'x',
-        GroundShadowReceiver.MIN_SIZE.x,
-        GroundShadowReceiver.MAX_SIZE.x
+        GroundShadowReceiverActor.MIN_SIZE.x,
+        GroundShadowReceiverActor.MAX_SIZE.x
       )
       .name('width');
     this.folder
       .add(
         this.size,
         'y',
-        GroundShadowReceiver.MIN_SIZE.y,
-        GroundShadowReceiver.MAX_SIZE.y
+        GroundShadowReceiverActor.MIN_SIZE.y,
+        GroundShadowReceiverActor.MAX_SIZE.y
       )
       .name('height');
     this.folder.add(this, 'colour');
@@ -84,8 +87,8 @@ export class GroundShadowReceiver implements NormalMappable {
   public static deserialise(
     scene: LightingScene,
     data: any
-  ): GroundShadowReceiver {
-    return new GroundShadowReceiver(scene, data);
+  ): GroundShadowReceiverActor {
+    return new GroundShadowReceiverActor(scene, data);
   }
 
   public destroy() {
@@ -122,8 +125,8 @@ export class GroundShadowReceiver implements NormalMappable {
         }
         this.size = clampVec(
           newSize,
-          GroundShadowReceiver.MIN_SIZE,
-          GroundShadowReceiver.MAX_SIZE
+          GroundShadowReceiverActor.MIN_SIZE,
+          GroundShadowReceiverActor.MAX_SIZE
         );
       } else {
         let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
@@ -142,8 +145,8 @@ export class GroundShadowReceiver implements NormalMappable {
       size: this.size,
       borderColour:
         this.hovered || this.dragging
-          ? GroundShadowReceiver.DEBUG_HOVER_COLOUR
-          : GroundShadowReceiver.DEBUG_COLOUR,
+          ? GroundShadowReceiverActor.DEBUG_HOVER_COLOUR
+          : GroundShadowReceiverActor.DEBUG_COLOUR,
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }

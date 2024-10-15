@@ -3,10 +3,10 @@ import InputManager from '@basementuniverse/input-manager';
 import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
+import { Mergeable, NormalMappable, WallShadowReceiver } from './contracts';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
 import { LightingSystem } from './LightingSystem';
-import NormalMappable from './NormalMappable';
 import { WallShadowLayer } from './types';
 import {
   clampVec,
@@ -14,9 +14,14 @@ import {
   minVec,
   pointInRectangle,
   quantizeVec,
-} from './utils';
+} from './utilities';
 
-export class WallShadowReceiver implements NormalMappable {
+export class WallShadowReceiverActor
+  implements
+    WallShadowReceiver,
+    NormalMappable,
+    Mergeable<WallShadowReceiverActor>
+{
   private static readonly DEFAULT_SIZE = vec(64, 64);
   private static readonly DEFAULT_COLOUR = '#ddd';
   private static readonly DEFAULT_RECEIVE_LIGHT = true;
@@ -37,14 +42,15 @@ export class WallShadowReceiver implements NormalMappable {
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = WallShadowReceiver.DEFAULT_SIZE;
-  public colour: string = WallShadowReceiver.DEFAULT_COLOUR;
-  public receiveLight: boolean = WallShadowReceiver.DEFAULT_RECEIVE_LIGHT;
-  public spriteName: string = WallShadowReceiver.DEFAULT_SPRITE_NAME;
-  public maskName: string = WallShadowReceiver.DEFAULT_MASK_NAME;
-  public normalMapName: string = WallShadowReceiver.DEFAULT_NORMAL_MAP_NAME;
-  public spriteRepeat: boolean = WallShadowReceiver.DEFAULT_SPRITE_REPEAT;
-  public layer: WallShadowLayer = WallShadowReceiver.DEFAULT_LAYER;
+  public size: vec = WallShadowReceiverActor.DEFAULT_SIZE;
+  public colour: string = WallShadowReceiverActor.DEFAULT_COLOUR;
+  public receiveLight: boolean = WallShadowReceiverActor.DEFAULT_RECEIVE_LIGHT;
+  public spriteName: string = WallShadowReceiverActor.DEFAULT_SPRITE_NAME;
+  public maskName: string = WallShadowReceiverActor.DEFAULT_MASK_NAME;
+  public normalMapName: string =
+    WallShadowReceiverActor.DEFAULT_NORMAL_MAP_NAME;
+  public spriteRepeat: boolean = WallShadowReceiverActor.DEFAULT_SPRITE_REPEAT;
+  public layer: WallShadowLayer = WallShadowReceiverActor.DEFAULT_LAYER;
 
   public hovered = false;
   public selected = false;
@@ -53,7 +59,7 @@ export class WallShadowReceiver implements NormalMappable {
 
   public constructor(
     scene: LightingScene,
-    data: Partial<WallShadowReceiver> = {}
+    data: Partial<WallShadowReceiverActor> = {}
   ) {
     this.scene = scene;
 
@@ -68,16 +74,16 @@ export class WallShadowReceiver implements NormalMappable {
       .add(
         this.size,
         'x',
-        WallShadowReceiver.MIN_SIZE.x,
-        WallShadowReceiver.MAX_SIZE.x
+        WallShadowReceiverActor.MIN_SIZE.x,
+        WallShadowReceiverActor.MAX_SIZE.x
       )
       .name('width');
     this.folder
       .add(
         this.size,
         'y',
-        WallShadowReceiver.MIN_SIZE.y,
-        WallShadowReceiver.MAX_SIZE.y
+        WallShadowReceiverActor.MIN_SIZE.y,
+        WallShadowReceiverActor.MAX_SIZE.y
       )
       .name('height');
     this.folder.add(this, 'colour');
@@ -108,8 +114,8 @@ export class WallShadowReceiver implements NormalMappable {
   public static deserialise(
     scene: LightingScene,
     data: any
-  ): WallShadowReceiver {
-    return new WallShadowReceiver(scene, data);
+  ): WallShadowReceiverActor {
+    return new WallShadowReceiverActor(scene, data);
   }
 
   public destroy() {
@@ -119,16 +125,16 @@ export class WallShadowReceiver implements NormalMappable {
   }
 
   public merge(
-    scene: LightingScene,
-    b: WallShadowReceiver
-  ): WallShadowReceiver {
-    const position = minVec(this.position, b.position);
+    other: WallShadowReceiverActor,
+    scene: LightingScene
+  ): WallShadowReceiverActor {
+    const position = minVec(this.position, other.position);
     const br = maxVec(
       vec.add(this.position, this.size),
-      vec.add(b.position, b.size)
+      vec.add(other.position, other.size)
     );
 
-    return new WallShadowReceiver(scene, {
+    return new WallShadowReceiverActor(scene, {
       ...exclude(this.serialise(), 'id'),
       position,
       size: vec.sub(br, position),
@@ -163,8 +169,8 @@ export class WallShadowReceiver implements NormalMappable {
         }
         this.size = clampVec(
           newSize,
-          WallShadowReceiver.MIN_SIZE,
-          WallShadowReceiver.MAX_SIZE
+          WallShadowReceiverActor.MIN_SIZE,
+          WallShadowReceiverActor.MAX_SIZE
         );
       } else {
         let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
@@ -184,8 +190,8 @@ export class WallShadowReceiver implements NormalMappable {
       size: this.size,
       borderColour:
         this.hovered || this.dragging
-          ? WallShadowReceiver.DEBUG_HOVER_COLOUR
-          : WallShadowReceiver.DEBUG_COLOUR,
+          ? WallShadowReceiverActor.DEBUG_HOVER_COLOUR
+          : WallShadowReceiverActor.DEBUG_COLOUR,
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }

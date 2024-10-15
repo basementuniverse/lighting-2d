@@ -1,37 +1,39 @@
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
-import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
+import { SpriteShadowCaster } from './contracts';
 import Game from './Game';
 import { LightingScene } from './LightingScene';
-import ShadowCaster from './ShadowCaster';
-import {
-  clampVec,
-  maxVec,
-  minVec,
-  pointInRectangle,
-  quantizeVec,
-} from './utils';
+import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
-export class RegionShadowCaster implements ShadowCaster {
+export class SpriteShadowCasterActor implements SpriteShadowCaster {
   private static readonly DEFAULT_SIZE = vec(64, 64);
-  private static readonly DEFAULT_INCLUDE_REGION_SHADOW = false;
+  private static readonly DEFAULT_SHADOW_NAME = 'character-shadow';
+  private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
+  private static readonly DEFAULT_OFFSET = vec(0.5, 0.9);
+  private static readonly DEFAULT_MIN_SHADOW_LENGTH = 64;
+  private static readonly DEFAULT_MAX_SHADOW_LENGTH = 64;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
   private static readonly MIN_SIZE = vec(16, 16);
   private static readonly MAX_SIZE = vec(256, 256);
 
-  public readonly type = 'RegionShadowCaster';
+  public readonly type = 'SpriteShadowCaster';
 
   private scene: LightingScene;
   public id: string = '';
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = RegionShadowCaster.DEFAULT_SIZE;
-  public includeRegionShadow: boolean =
-    RegionShadowCaster.DEFAULT_INCLUDE_REGION_SHADOW;
+  public size: vec = SpriteShadowCasterActor.DEFAULT_SIZE;
+  public shadowName: string = SpriteShadowCasterActor.DEFAULT_SHADOW_NAME;
+  public anchor: vec = SpriteShadowCasterActor.DEFAULT_ANCHOR;
+  public offset: vec = SpriteShadowCasterActor.DEFAULT_OFFSET;
+  public minShadowLength: number =
+    SpriteShadowCasterActor.DEFAULT_MIN_SHADOW_LENGTH;
+  public maxShadowLength: number | null =
+    SpriteShadowCasterActor.DEFAULT_MAX_SHADOW_LENGTH;
 
   public hovered = false;
   public selected = false;
@@ -40,7 +42,7 @@ export class RegionShadowCaster implements ShadowCaster {
 
   public constructor(
     scene: LightingScene,
-    data: Partial<RegionShadowCaster> = {}
+    data: Partial<SpriteShadowCasterActor> = {}
   ) {
     this.scene = scene;
 
@@ -48,26 +50,36 @@ export class RegionShadowCaster implements ShadowCaster {
       id: data.id ?? uuid().split('-')[0],
     });
 
-    this.folder = Game.gui.addFolder(`RegionShadowCaster ${this.id}`);
+    this.folder = Game.gui.addFolder(`SpriteShadowCaster ${this.id}`);
     this.folder.add(this.position, 'x');
     this.folder.add(this.position, 'y');
     this.folder
       .add(
         this.size,
         'x',
-        RegionShadowCaster.MIN_SIZE.x,
-        RegionShadowCaster.MAX_SIZE.x
+        SpriteShadowCasterActor.MIN_SIZE.x,
+        SpriteShadowCasterActor.MAX_SIZE.x
       )
       .name('width');
     this.folder
       .add(
         this.size,
         'y',
-        RegionShadowCaster.MIN_SIZE.y,
-        RegionShadowCaster.MAX_SIZE.y
+        SpriteShadowCasterActor.MIN_SIZE.y,
+        SpriteShadowCasterActor.MAX_SIZE.y
       )
       .name('height');
-    this.folder.add(this, 'includeRegionShadow');
+    this.folder.add(this, 'shadowName');
+    this.folder.add(this.anchor, 'x').name('anchor x');
+    this.folder.add(this.anchor, 'y').name('anchor y');
+    this.folder.add(this.offset, 'x').name('offset x');
+    this.folder.add(this.offset, 'y').name('offset y');
+    this.folder.add(this, 'minShadowLength');
+    this.folder.add(this, 'maxShadowLength');
+  }
+
+  public get shadow(): HTMLImageElement | null {
+    return LightingScene.SPRITES[this.shadowName] ?? null;
   }
 
   public serialise(): any {
@@ -76,37 +88,25 @@ export class RegionShadowCaster implements ShadowCaster {
       id: this.id,
       position: this.position,
       size: this.size,
+      shadowName: this.shadowName,
+      anchor: this.anchor,
+      offset: this.offset,
+      minShadowLength: this.minShadowLength,
+      maxShadowLength: this.maxShadowLength,
     };
   }
 
   public static deserialise(
     scene: LightingScene,
     data: any
-  ): RegionShadowCaster {
-    return new RegionShadowCaster(scene, data);
+  ): SpriteShadowCasterActor {
+    return new SpriteShadowCasterActor(scene, data);
   }
 
   public destroy() {
     if (this.folder) {
       Game.gui.removeFolder(this.folder);
     }
-  }
-
-  public merge(
-    scene: LightingScene,
-    b: RegionShadowCaster
-  ): RegionShadowCaster {
-    const position = minVec(this.position, b.position);
-    const br = maxVec(
-      vec.add(this.position, this.size),
-      vec.add(b.position, b.size)
-    );
-
-    return new RegionShadowCaster(scene, {
-      ...exclude(this.serialise(), 'id'),
-      position,
-      size: vec.sub(br, position),
-    });
   }
 
   public update(dt: number) {
@@ -137,8 +137,8 @@ export class RegionShadowCaster implements ShadowCaster {
         }
         this.size = clampVec(
           newSize,
-          RegionShadowCaster.MIN_SIZE,
-          RegionShadowCaster.MAX_SIZE
+          SpriteShadowCasterActor.MIN_SIZE,
+          SpriteShadowCasterActor.MAX_SIZE
         );
       } else {
         let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
@@ -149,17 +149,16 @@ export class RegionShadowCaster implements ShadowCaster {
       }
     }
 
-    Debug.border(`RegionShadowCaster ${this.id}`, '', this.position, {
+    Debug.border(`SpriteShadowCaster ${this.id}`, '', this.position, {
       level: 1,
       space: 'world',
       showLabel: this.selected || Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
-      labelOffset: vec(10, 50),
       size: this.size,
       borderColour:
         this.hovered || this.dragging
-          ? RegionShadowCaster.DEBUG_HOVER_COLOUR
-          : RegionShadowCaster.DEBUG_COLOUR,
+          ? SpriteShadowCasterActor.DEBUG_HOVER_COLOUR
+          : SpriteShadowCasterActor.DEBUG_COLOUR,
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }
