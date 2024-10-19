@@ -799,6 +799,10 @@ export class LightingScene extends Scene {
           break;
         }
 
+        if (!this.selected.normalMappingCanvas) {
+          break;
+        }
+
         this.lightingSystem.drawSceneNormalMap(this.camera, [
           ...this.groundShadowReceivers,
           ...this.wallShadowReceivers,

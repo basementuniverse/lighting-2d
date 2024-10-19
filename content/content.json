@@ -20,11 +20,6 @@
     "args": ["./content/images/anvil-normal.png"]
   },
   {
-    "name": "anvil-specular",
-    "type": "image",
-    "args": ["./content/images/anvil-specular.png"]
-  },
-  {
     "name": "character",
     "type": "image",
     "args": ["./content/images/character.png"]
@@ -85,11 +80,6 @@
     "args": ["./content/images/ground4-normal.png"]
   },
   {
-    "name": "ground4-specular",
-    "type": "image",
-    "args": ["./content/images/ground4-specular.png"]
-  },
-  {
     "name": "light",
     "type": "image",
     "args": ["./content/images/light.png"]
@@ -125,11 +115,6 @@
     "args": ["./content/images/urn-normal.png"]
   },
   {
-    "name": "urn-specular",
-    "type": "image",
-    "args": ["./content/images/urn-specular.png"]
-  },
-  {
     "name": "wall-top",
     "type": "image",
     "args": ["./content/images/wall-top.png"]
@@ -163,6 +148,21 @@
     "name": "wall2-normal",
     "type": "image",
     "args": ["./content/images/wall2-normal.png"]
+  },
+  {
+    "name": "wall3",
+    "type": "image",
+    "args": ["./content/images/wall3.png"]
+  },
+  {
+    "name": "wall3-mask",
+    "type": "image",
+    "args": ["./content/images/wall3-mask.png"]
+  },
+  {
+    "name": "wall3-normal",
+    "type": "image",
+    "args": ["./content/images/wall3-normal.png"]
   },
   {
     "name": "well",

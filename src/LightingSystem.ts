@@ -1,7 +1,15 @@
 import Camera from '@basementuniverse/camera';
 import { pluck } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
-import { CircleShadowCaster, GroundShadowReceiver, Mergeable, NormalMappable, RegionShadowCaster, SpriteShadowCaster, WallShadowReceiver } from './contracts';
+import {
+  CircleShadowCaster,
+  GroundShadowReceiver,
+  Mergeable,
+  NormalMappable,
+  RegionShadowCaster,
+  SpriteShadowCaster,
+  WallShadowReceiver,
+} from './contracts';
 import { ShadowCaster } from './contracts/ShadowCaster';
 import { ShadowReceiver } from './contracts/ShadowReceiver';
 import Game from './Game';
@@ -32,12 +40,12 @@ type LightingSystemOptions = {
   softShadowsAmount: number;
 
   /**
-   * Should normal maps be enabled?
+   * Should normal mapping be enabled?
    */
   normalMappingEnabled: boolean;
 
   /**
-   * Normal map shader
+   * Normal mapping shader
    */
   normalMappingShader: string | null;
 
@@ -394,6 +402,10 @@ export class LightingSystem {
       this.lightMapContext.save();
       camera.setTransforms(this.lightMapContext);
       this.lights.forEach(light => {
+        if (!light.normalMappingCanvas) {
+          return;
+        }
+
         this.lightMapContext.drawImage(
           light.normalMappingCanvas.domElement,
           light.position.x - light.radius,
@@ -422,7 +434,7 @@ export class LightingSystem {
   }
 
   /**
-   * Draw the lightmaps to the context
+   * Overlay the lightmap onto the context
    */
   public draw(context: CanvasRenderingContext2D) {
     context.save();

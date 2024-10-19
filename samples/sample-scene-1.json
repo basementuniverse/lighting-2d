@@ -433,9 +433,9 @@
       },
       "colour": "",
       "receiveLight": true,
-      "spriteName": "sign",
-      "maskName": "sign-mask",
-      "normalMapName": "sign-normal",
+      "spriteName": "urn",
+      "maskName": "urn-mask",
+      "normalMapName": "urn-normal",
       "spriteRepeat": false,
       "layer": "two"
     },
