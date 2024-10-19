@@ -1,15 +1,16 @@
+import ContentManager from '@basementuniverse/content-manager';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
-import { NormalMappable, ShadowReceiver } from './contracts';
+import { Actor, NormalMappable, ShadowReceiver } from './contracts';
 import Game from './Game';
-import { LightingScene } from './LightingScene';
 import { LightingSystem } from './LightingSystem';
+import { LightingScene } from './scenes/LightingScene';
 import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
 export class GroundShadowReceiverActor
-  implements ShadowReceiver, NormalMappable
+  implements Actor, ShadowReceiver, NormalMappable
 {
   private static readonly DEFAULT_SIZE = vec(256, 256);
   private static readonly DEFAULT_COLOUR = '#ddd';
@@ -162,7 +163,7 @@ export class GroundShadowReceiverActor
       this.size.y
     );
 
-    const image = LightingScene.SPRITES[this.spriteName];
+    const image = ContentManager.get<HTMLImageElement>(this.spriteName);
     if (image) {
       const pattern = context.createPattern(image, 'repeat');
       if (pattern) {
@@ -198,7 +199,7 @@ export class GroundShadowReceiverActor
   public drawNormalMap(context: CanvasRenderingContext2D) {
     context.save();
 
-    const image = LightingScene.SPRITES[this.normalMapName];
+    const image = ContentManager.get<HTMLImageElement>(this.normalMapName);
     if (image) {
       const pattern = context.createPattern(image, 'repeat');
       if (pattern) {

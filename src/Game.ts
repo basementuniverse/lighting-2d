@@ -1,10 +1,11 @@
+import ContentManager from '@basementuniverse/content-manager';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
+import SceneManager from '@basementuniverse/scene-manager';
 import { vec } from '@basementuniverse/vec';
 import * as dat from 'dat.gui';
 import * as constants from './constants';
-import { LightingScene } from './LightingScene';
-import { TestScene } from './TestScene';
+import LoadingScene from './scenes/LoadingScene';
 
 export default class Game {
   public static DEBUG_MODES = {
@@ -34,8 +35,6 @@ export default class Game {
   private lastFrameCountTime: number;
   private frameRate: number = 0;
   private frameCount: number = 0;
-
-  private scene: TestScene | LightingScene | null = null;
 
   public static screen: vec;
   public static gui: dat.GUI;
@@ -69,11 +68,13 @@ export default class Game {
 
   public initialise() {
     // Initialise subsystems
+    ContentManager.initialise();
     Debug.initialise();
     InputManager.initialise({
       element: this.canvas,
       preventContextMenu: true,
     });
+    SceneManager.initialise();
     Game.gui = new dat.GUI({
       width: 300,
     });
@@ -94,10 +95,8 @@ export default class Game {
     this.lastFrameTime = this.lastFrameCountTime = performance.now();
     this.loop();
 
-    // Initialise scene
-    this.scene = new LightingScene();
-    // this.scene = new TestScene();
-    this.scene.initialise();
+    // Push the initial scene
+    SceneManager.push(new LoadingScene());
   }
 
   private loop() {
@@ -124,18 +123,13 @@ export default class Game {
   update(dt: number) {
     Game.screen = vec(this.canvas.width, this.canvas.height);
 
-    if (this.scene) {
-      this.scene.update(dt);
-    }
-
+    SceneManager.update(dt);
     InputManager.update(); // Input manager should be updated last
   }
 
   draw() {
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    if (this.scene) {
-      this.scene.draw(this.context);
-    }
+    SceneManager.draw(this.context);
   }
 }

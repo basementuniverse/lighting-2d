@@ -3,9 +3,9 @@ import InputManager from '@basementuniverse/input-manager';
 import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
-import { Mergeable, RegionShadowCaster } from './contracts';
+import { Actor, Mergeable, RegionShadowCaster } from './contracts';
 import Game from './Game';
-import { LightingScene } from './LightingScene';
+import { LightingScene } from './scenes/LightingScene';
 import {
   clampVec,
   maxVec,
@@ -15,7 +15,7 @@ import {
 } from './utilities';
 
 export class RegionShadowCasterActor
-  implements RegionShadowCaster, Mergeable<RegionShadowCasterActor>
+  implements Actor, RegionShadowCaster, Mergeable<RegionShadowCasterActor>
 {
   private static readonly DEFAULT_SIZE = vec(64, 64);
   private static readonly DEFAULT_INCLUDE_REGION_SHADOW = false;
@@ -165,4 +165,6 @@ export class RegionShadowCasterActor
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }
+
+  public draw(context: CanvasRenderingContext2D) {}
 }

@@ -1,13 +1,14 @@
+import ContentManager from '@basementuniverse/content-manager';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
-import { SpriteShadowCaster } from './contracts';
+import { Actor, SpriteShadowCaster } from './contracts';
 import Game from './Game';
-import { LightingScene } from './LightingScene';
+import { LightingScene } from './scenes/LightingScene';
 import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
-export class SpriteShadowCasterActor implements SpriteShadowCaster {
+export class SpriteShadowCasterActor implements Actor, SpriteShadowCaster {
   private static readonly DEFAULT_SIZE = vec(64, 64);
   private static readonly DEFAULT_SHADOW_NAME = 'character-shadow';
   private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
@@ -79,7 +80,7 @@ export class SpriteShadowCasterActor implements SpriteShadowCaster {
   }
 
   public get shadow(): HTMLImageElement | null {
-    return LightingScene.SPRITES[this.shadowName] ?? null;
+    return ContentManager.get<HTMLImageElement>(this.shadowName) ?? null;
   }
 
   public serialise(): any {
@@ -162,4 +163,6 @@ export class SpriteShadowCasterActor implements SpriteShadowCaster {
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }
+
+  public draw(context: CanvasRenderingContext2D) {}
 }

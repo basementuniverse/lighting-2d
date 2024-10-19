@@ -1,14 +1,15 @@
 import Camera from '@basementuniverse/camera';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
+import { Scene } from '@basementuniverse/scene-manager';
 import { at } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
-import Game from './Game';
-import { Light } from './Light';
+import Game from '../Game';
+import { Light } from '../Light';
+import { LightingSystem } from '../LightingSystem';
+import { RegionShadowCasterActor } from '../RegionShadowCasterActor';
 import { LightingScene } from './LightingScene';
-import { LightingSystem } from './LightingSystem';
-import { RegionShadowCasterActor } from './RegionShadowCasterActor';
-import { Line, Rectangle, Sector2d } from './types';
+import { Line, Rectangle, Sector2d } from '../types';
 import {
   lineInRectangle,
   lineYIntercept,
@@ -17,10 +18,10 @@ import {
   rectangleVertices,
   rectanglesIntersect,
   sector2d,
-} from './utilities';
-import { WallShadowReceiverActor } from './WallShadowReceiverActor';
+} from '../utilities';
+import { WallShadowReceiverActor } from '../WallShadowReceiverActor';
 
-export class TestScene {
+export class TestScene extends Scene {
   private TEST_RECT: Rectangle = {
     position: vec(200, 200),
     size: vec(300, 200),

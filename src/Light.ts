@@ -1,4 +1,5 @@
 import Camera from '@basementuniverse/camera';
+import ContentManager from '@basementuniverse/content-manager';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { parseColor } from '@basementuniverse/parsecolor';
@@ -15,6 +16,7 @@ import { ShaderCanvas } from 'shader-canvas';
 import { v4 as uuid } from 'uuid';
 import * as constants from './constants';
 import {
+  Actor,
   CircleShadowCaster,
   GroundShadowReceiver,
   RegionShadowCaster,
@@ -23,8 +25,8 @@ import {
   WallShadowReceiver,
 } from './contracts';
 import Game from './Game';
-import { LightingScene } from './LightingScene';
 import { LightingSystem } from './LightingSystem';
+import { LightingScene } from './scenes/LightingScene';
 import {
   Colour,
   Interval2d,
@@ -78,7 +80,7 @@ type Shadow<T extends ShadowCaster> = {
   size?: vec;
 };
 
-export class Light {
+export class Light implements Actor {
   private static readonly DEFAULT_RADIUS = 100;
   private static readonly DEFAULT_COLOUR = 'white';
   private static readonly DEFAULT_INTENSITY = 0.2;
@@ -285,7 +287,7 @@ export class Light {
       space: 'world',
       showLabel: this.selected || Game.DEBUG_MODES[Game.debugMode].labels,
       showValue: false,
-      markerImage: LightingScene.SPRITES['light'],
+      markerImage: ContentManager.get<HTMLImageElement>('light'),
     });
   }
 
@@ -388,7 +390,11 @@ export class Light {
     if (this.lightingSystem.options.normalMappingEnabled) {
       try {
         this.prepareNormalMapping(camera);
-      } catch (e) {}
+      } catch (e) {
+        if (constants.DEBUG) {
+          console.error(e);
+        }
+      }
     }
   }
 
@@ -1655,4 +1661,6 @@ export class Light {
     );
     this.normalMappingCanvas.render();
   }
+
+  public draw(context: CanvasRenderingContext2D) {}
 }

@@ -2,11 +2,12 @@ import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
+import { Actor, CircleShadowCaster } from './contracts';
 import Game from './Game';
-import { LightingScene } from './LightingScene';
+import { LightingScene } from './scenes/LightingScene';
 import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
-export class CircleShadowCasterActor implements CircleShadowCasterActor {
+export class CircleShadowCasterActor implements Actor, CircleShadowCaster {
   private static readonly DEFAULT_SIZE = vec(64, 64);
   private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
   private static readonly DEFAULT_MIN_SHADOW_DISTANCE = 5;
@@ -152,4 +153,6 @@ export class CircleShadowCasterActor implements CircleShadowCasterActor {
       borderStyle: this.selected ? 'solid' : 'dashed',
     });
   }
+
+  public draw(context: CanvasRenderingContext2D) {}
 }

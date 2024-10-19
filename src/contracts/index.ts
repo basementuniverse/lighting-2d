@@ -1,3 +1,4 @@
+export * from './Actor';
 export * from './CircleShadowCaster';
 export * from './GroundShadowReceiver';
 export * from './Mergeable';

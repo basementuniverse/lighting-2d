@@ -1,12 +1,18 @@
+import ContentManager from '@basementuniverse/content-manager';
 import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { exclude } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
-import { Mergeable, NormalMappable, WallShadowReceiver } from './contracts';
+import {
+  Actor,
+  Mergeable,
+  NormalMappable,
+  WallShadowReceiver,
+} from './contracts';
 import Game from './Game';
-import { LightingScene } from './LightingScene';
 import { LightingSystem } from './LightingSystem';
+import { LightingScene } from './scenes/LightingScene';
 import { WallShadowLayer } from './types';
 import {
   clampVec,
@@ -18,6 +24,7 @@ import {
 
 export class WallShadowReceiverActor
   implements
+    Actor,
     WallShadowReceiver,
     NormalMappable,
     Mergeable<WallShadowReceiverActor>
@@ -209,7 +216,7 @@ export class WallShadowReceiverActor
       );
     }
 
-    const image = LightingScene.SPRITES[this.spriteName];
+    const image = ContentManager.get<HTMLImageElement>(this.spriteName);
     if (image) {
       if (this.spriteRepeat) {
         const pattern = context.createPattern(image, 'repeat');
@@ -251,7 +258,7 @@ export class WallShadowReceiverActor
       );
     }
 
-    const image = LightingScene.SPRITES[this.maskName];
+    const image = ContentManager.get<HTMLImageElement>(this.maskName);
     if (image) {
       if (this.spriteRepeat) {
         const pattern = context.createPattern(image, 'repeat');
@@ -283,7 +290,7 @@ export class WallShadowReceiverActor
   public drawNormalMap(context: CanvasRenderingContext2D) {
     context.save();
 
-    const image = LightingScene.SPRITES[this.normalMapName];
+    const image = ContentManager.get<HTMLImageElement>(this.normalMapName);
     if (image) {
       if (this.spriteRepeat) {
         const pattern = context.createPattern(image, 'repeat');
