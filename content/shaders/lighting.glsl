@@ -5,8 +5,12 @@ uniform vec2 u_resolution;
 uniform vec2 u_lightScreenPositionTopLeft;
 uniform vec2 u_lightScreenPositionBottomRight;
 uniform float u_wallLightingYOffset;
+uniform float u_highlightAlpha;
+uniform float u_shadowAlpha;
+uniform float u_specularAlpha;
 
 uniform sampler2D u_sceneNormalMap;
+uniform sampler2D u_sceneSpecularMap;
 uniform sampler2D u_groundLightMap;
 uniform sampler2D u_wall1LightMap;
 uniform sampler2D u_wall2LightMap;
@@ -14,20 +18,21 @@ uniform sampler2D u_groundMask;
 uniform sampler2D u_wall1Mask;
 uniform sampler2D u_wall2Mask;
 
-// TODO
-// uniform float u_t1;
-// uniform float u_t2;
-// uniform float u_t3;
-
 float LIGHT_HEIGHT = -0.3;
 float WALL_NORMAL_Z_OFFSET = 0.2;
 
 float HIGHLIGHT_THRESHOLD = 0.849;
 float HIGHLIGHT_OFFSET = 0.25;
-float HIGHLIGHT_ALPHA = 0.69;
+
+float SPECULAR_THRESHOLD = 1.06;
+float SPECULAR_OFFSET = 0.25;
+float SPECULAR_SPREAD = 0.1;
+float SPECULAR_MULTIPLIER = 100.0;
+float SPECULAR_DISTANCE_AMPLITUDE = 0.119;
+float SPECULAR_DISTANCE_OFFSET = 0.1;
+float SPECULAR_DISTANCE_SPREAD = 0.1;
 
 float SHADOW_THRESHOLD = 0.121;
-float SHADOW_ALPHA = 0.34;
 
 float SHADING_FALLOFF = 1.788;
 float SHADING_OFFSET = 2.244;
@@ -44,6 +49,10 @@ float avg(vec3 a) {
 float band(float a, float p) {
   float ip = 1.0 / p;
   return floor((a - p) * ip) / ip;
+}
+
+float bump(float x, float amplitude, float center, float spread) {
+  return amplitude * (1.0 - pow((x - center) / spread, 2.0));
 }
 
 bool floatEquals(float a, float b, float epsilon) {
@@ -63,14 +72,12 @@ bool isBlack(vec4 color) {
 }
 
 void main() {
-
-  // TODO
-  // HIGHLIGHT_ALPHA = u_t1;
-  // SHADOW_ALPHA = u_t2;
-  // HIGHLIGHT_OFFSET = u_t3;
-
   vec2 uv = gl_FragCoord.xy / u_resolution;
-  vec2 screenUV = vec2(
+
+  // We pass in various maps (e.g. normal and specular) for the entire scene,
+  // but we're only interested in the  part of the map under the light's
+  // bounding box
+  vec2 sceneUV = vec2(
     remap(
       uv.x,
       0.0,
@@ -87,7 +94,8 @@ void main() {
     )
   );
 
-  vec4 sceneNormal = texture2D(u_sceneNormalMap, screenUV);
+  vec4 sceneNormal = texture2D(u_sceneNormalMap, sceneUV);
+  vec4 sceneSpecular = texture2D(u_sceneSpecularMap, sceneUV);
 
   vec2 lightDirection = normalize(uv - vec2(0.5));
   vec3 lightNormal = normalize(vec3(
@@ -96,54 +104,105 @@ void main() {
     LIGHT_HEIGHT
   ));
 
-  // Ground
-  vec4 groundMask = texture2D(u_groundMask, screenUV);
+  // ---------------------------------------------------------------------------
+  // GROUND SHADING
+  // ---------------------------------------------------------------------------
+  vec4 groundMask = texture2D(u_groundMask, sceneUV);
   if (!isTransparent(groundMask)) {
     vec4 groundLight = texture2D(u_groundLightMap, uv);
 
+    // We don't need any shading if there's no light on this part of the ground
     if (isBlack(groundLight)) {
       gl_FragColor = vec4(0.0);
       return;
     }
 
+    // Light intensity
     float light = -dot(
       normalize(sceneNormal.rgb - vec3(0.5)),
       lightNormal
     );
+
+    // Gradual falloff of light intensity with distance from light
     float falloff = pow(avg(groundLight.rgb) * SHADING_OFFSET, SHADING_FALLOFF);
 
+    // Highlights
     if (light >= HIGHLIGHT_THRESHOLD) {
-      vec4 highlight = vec4(
+      vec4 highlightColour = vec4(
         vec3(clamp(u_lightColour.rgb + HIGHLIGHT_OFFSET, 0.0, 1.0)),
         u_lightColour.a
       );
-      float amount = clamp(
+      float highlightAmount = clamp(
         band(
-          (0.5 + 0.5 * light) * falloff * highlight.a * HIGHLIGHT_ALPHA,
+          (0.5 + 0.5 * light) * falloff * highlightColour.a * u_highlightAlpha,
           SHADING_BANDING
         ),
         0.0,
         1.0
       );
 
-      amount *= 3.0;
+      vec4 highlightResult = vec4(
+        highlightColour.rgb * highlightAmount,
+        highlightAmount
+      );
 
-      gl_FragColor = vec4(highlight.rgb * amount, amount);
+      // Specular highlights
+      vec4 specularColour = vec4(
+        vec3(clamp(u_lightColour.rgb + SPECULAR_OFFSET, 0.0, 1.0)),
+        1.0
+      );
+      float specularAmount = clamp(
+        band(
+          (0.5 + 0.5 * light) * falloff,
+          SHADING_BANDING
+        ),
+        0.0,
+        1.0
+      );
+      float specularDistance = clamp(bump(
+        length(uv - vec2(0.5)),
+        SPECULAR_DISTANCE_AMPLITUDE,
+        SPECULAR_DISTANCE_OFFSET,
+        SPECULAR_DISTANCE_SPREAD
+      ), 0.0, 1.0);
+      float specularMixAmount = (
+        sceneSpecular.r *
+        bump(
+          clamp(light, 0.0, 1.0),
+          SPECULAR_MULTIPLIER,
+          SPECULAR_THRESHOLD,
+          SPECULAR_SPREAD
+        ) *
+        specularDistance *
+        u_specularAlpha
+      );
+
+      vec4 specularResult = vec4(
+        specularColour.rgb * specularAmount,
+        specularAmount
+      );
+
+      gl_FragColor = mix(
+        highlightResult,
+        specularResult,
+        specularMixAmount
+      );
       return;
     }
 
+    // Shadows
     if (light <= SHADOW_THRESHOLD) {
-      vec4 shadow = vec4(0.0, 0.0, 0.0, 1.0);
-      float amount = clamp(
+      vec4 shadowColour = vec4(0.0, 0.0, 0.0, 1.0);
+      float shadowAmount = clamp(
         band(
-          (0.5 - 0.5 * light) * falloff * SHADOW_ALPHA,
+          (0.5 - 0.5 * light) * falloff * u_shadowAlpha,
           SHADING_BANDING
         ),
         0.0,
         1.0
       );
 
-      gl_FragColor = vec4(shadow.rgb * amount, amount);
+      gl_FragColor = vec4(shadowColour.rgb * shadowAmount, shadowAmount);
       return;
     }
 
@@ -151,53 +210,106 @@ void main() {
     return;
   }
 
-  // Wall layer 1
+  // ---------------------------------------------------------------------------
+  // WALL LAYER 1 SHADING
+  // ---------------------------------------------------------------------------
   vec2 wallLightingYOffset = vec2(0.0, u_wallLightingYOffset / u_resolution.y);
-  vec4 wall1Mask = texture2D(u_wall1Mask, screenUV);
+  vec4 wall1Mask = texture2D(u_wall1Mask, sceneUV);
   if (!isTransparent(wall1Mask)) {
     vec4 wallLight = texture2D(u_wall1LightMap, uv + wallLightingYOffset);
 
+    // We don't need any shading if there's no light on this part of the wall
     if (isBlack(wallLight)) {
       gl_FragColor = vec4(0.0);
       return;
     }
 
+    // Light intensity
     float light = -dot(
       normalize(sceneNormal.rgb - vec3(0.5, 0.5, 0.5 + WALL_NORMAL_Z_OFFSET)),
       lightNormal
     );
+
+    // Gradual falloff of light intensity with distance from light
     float falloff = pow(avg(wallLight.rgb) * SHADING_OFFSET, SHADING_FALLOFF);
 
+    // Highlights
     if (light >= HIGHLIGHT_THRESHOLD) {
-      vec4 highlight = vec4(
+      vec4 highlightColour = vec4(
         vec3(clamp(u_lightColour.rgb + HIGHLIGHT_OFFSET, 0.0, 1.0)),
         u_lightColour.a
       );
-      float amount = clamp(
+      float highlightAmount = clamp(
         band(
-          (0.5 + 0.5 * light) * falloff * highlight.a * HIGHLIGHT_ALPHA,
+          (0.5 + 0.5 * light) * falloff * highlightColour.a * u_highlightAlpha,
           SHADING_BANDING
         ),
         0.0,
         1.0
       );
 
-      gl_FragColor = vec4(highlight.rgb * amount, amount);
+      vec4 highlightResult = vec4(
+        highlightColour.rgb * highlightAmount,
+        highlightAmount
+      );
+
+      // Specular highlights
+      vec4 specularColour = vec4(
+        vec3(clamp(u_lightColour.rgb + SPECULAR_OFFSET, 0.0, 1.0)),
+        1.0
+      );
+      float specularAmount = clamp(
+        band(
+          (0.5 + 0.5 * light) * falloff,
+          SHADING_BANDING
+        ),
+        0.0,
+        1.0
+      );
+      float specularDistance = clamp(bump(
+        length(uv - vec2(0.5)),
+        SPECULAR_DISTANCE_AMPLITUDE,
+        SPECULAR_DISTANCE_OFFSET,
+        SPECULAR_DISTANCE_SPREAD
+      ), 0.0, 1.0);
+      float specularMixAmount = (
+        sceneSpecular.r *
+        bump(
+          clamp(light, 0.0, 1.0),
+          SPECULAR_MULTIPLIER,
+          SPECULAR_THRESHOLD,
+          SPECULAR_SPREAD
+        ) *
+        specularDistance *
+        u_specularAlpha
+      );
+
+      vec4 specularResult = vec4(
+        specularColour.rgb * specularAmount,
+        specularAmount
+      );
+
+      gl_FragColor = mix(
+        highlightResult,
+        specularResult,
+        specularMixAmount
+      );
       return;
     }
 
+    // Shadows
     if (light <= SHADOW_THRESHOLD) {
-      vec4 shadow = vec4(0.0, 0.0, 0.0, 1.0);
-      float amount = clamp(
+      vec4 shadowColour = vec4(0.0, 0.0, 0.0, 1.0);
+      float shadowAmount = clamp(
         band(
-          (0.5 - 0.5 * light) * falloff * SHADOW_ALPHA,
+          (0.5 - 0.5 * light) * falloff * u_shadowAlpha,
           SHADING_BANDING
         ),
         0.0,
         1.0
       );
 
-      gl_FragColor = vec4(shadow.rgb * amount, amount);
+      gl_FragColor = vec4(shadowColour.rgb * shadowAmount, shadowAmount);
       return;
     }
 
@@ -205,52 +317,105 @@ void main() {
     return;
   }
 
-  // Wall layer 2
-  vec4 wall2Mask = texture2D(u_wall2Mask, screenUV);
+  // ---------------------------------------------------------------------------
+  // WALL LAYER 2 SHADING
+  // ---------------------------------------------------------------------------
+  vec4 wall2Mask = texture2D(u_wall2Mask, sceneUV);
   if (!isTransparent(wall2Mask)) {
     vec4 wallLight = texture2D(u_wall2LightMap, uv + wallLightingYOffset);
 
+    // We don't need any shading if there's no light on this part of the wall
     if (isBlack(wallLight)) {
       gl_FragColor = vec4(0.0);
       return;
     }
 
+    // Light intensity
     float light = -dot(
       normalize(sceneNormal.rgb - vec3(0.5, 0.5, 0.5 + WALL_NORMAL_Z_OFFSET)),
       lightNormal
     );
+
+    // Gradual falloff of light intensity with distance from light
     float falloff = pow(avg(wallLight.rgb) * SHADING_OFFSET, SHADING_FALLOFF);
 
+    // Highlights
     if (light >= HIGHLIGHT_THRESHOLD) {
-      vec4 highlight = vec4(
+      vec4 highlightColour = vec4(
         vec3(clamp(u_lightColour.rgb + HIGHLIGHT_OFFSET, 0.0, 1.0)),
         u_lightColour.a
       );
-      float amount = clamp(
+      float highlightAmount = clamp(
         band(
-          (0.5 + 0.5 * light) * falloff * highlight.a * HIGHLIGHT_ALPHA,
+          (0.5 + 0.5 * light) * falloff * highlightColour.a * u_highlightAlpha,
           SHADING_BANDING
         ),
         0.0,
         1.0
       );
 
-      gl_FragColor = vec4(highlight.rgb * amount, amount);
+      vec4 highlightResult = vec4(
+        highlightColour.rgb * highlightAmount,
+        highlightAmount
+      );
+
+      // Specular highlights
+      vec4 specularColour = vec4(
+        vec3(clamp(u_lightColour.rgb + SPECULAR_OFFSET, 0.0, 1.0)),
+        1.0
+      );
+      float specularAmount = clamp(
+        band(
+          (0.5 + 0.5 * light) * falloff,
+          SHADING_BANDING
+        ),
+        0.0,
+        1.0
+      );
+      float specularDistance = clamp(bump(
+        length(uv - vec2(0.5)),
+        SPECULAR_DISTANCE_AMPLITUDE,
+        SPECULAR_DISTANCE_OFFSET,
+        SPECULAR_DISTANCE_SPREAD
+      ), 0.0, 1.0);
+      float specularMixAmount = (
+        sceneSpecular.r *
+        bump(
+          clamp(light, 0.0, 1.0),
+          SPECULAR_MULTIPLIER,
+          SPECULAR_THRESHOLD,
+          SPECULAR_SPREAD
+        ) *
+        specularDistance *
+        u_specularAlpha
+      );
+
+      vec4 specularResult = vec4(
+        specularColour.rgb * specularAmount,
+        specularAmount
+      );
+
+      gl_FragColor = mix(
+        highlightResult,
+        specularResult,
+        specularMixAmount
+      );
       return;
     }
 
+    // Shadows
     if (light <= SHADOW_THRESHOLD) {
-      vec4 shadow = vec4(0.0, 0.0, 0.0, 1.0);
-      float amount = clamp(
+      vec4 shadowColour = vec4(0.0, 0.0, 0.0, 1.0);
+      float shadowAmount = clamp(
         band(
-          (0.5 - 0.5 * light) * falloff * SHADOW_ALPHA,
+          (0.5 - 0.5 * light) * falloff * u_shadowAlpha,
           SHADING_BANDING
         ),
         0.0,
         1.0
       );
 
-      gl_FragColor = vec4(shadow.rgb * amount, amount);
+      gl_FragColor = vec4(shadowColour.rgb * shadowAmount, shadowAmount);
       return;
     }
 

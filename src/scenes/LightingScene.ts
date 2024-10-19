@@ -60,10 +60,6 @@ export class LightingScene extends Scene {
   public mode: LightingSceneRenderMode = LightingSceneRenderMode.Normal;
   public showHelp: boolean = false;
 
-  public t1: number = 0.69;
-  public t2: number = 0.34;
-  public t3: number = 0.25;
-
   public initialise() {
     // Camera
     this.camera = new Camera(vec(), {
@@ -85,12 +81,6 @@ export class LightingScene extends Scene {
     this.lightingSystem.initialise();
 
     // GUI controls
-
-    // TODO
-    // Game.gui.add(this, 't1').name('highlight alpha');
-    // Game.gui.add(this, 't2').name('shadow alpha');
-    // Game.gui.add(this, 't3').name('highlight offset');
-
     Game.gui
       .add(this, 'mode', Object.values(LightingSceneRenderMode))
       .name('Render mode');
@@ -154,6 +144,27 @@ export class LightingScene extends Scene {
       .name('Shader enabled')
       .onChange(value => {
         this.lightingSystem.options.shaderEnabled = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'shaderHighlightAlpha', 0, 1, 0.001)
+      .name('Shader highlights alpha')
+      .onChange(value => {
+        this.lightingSystem.options.shaderHighlightAlpha = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'shaderShadowAlpha', 0, 1, 0.001)
+      .name('Shader shadows alpha')
+      .onChange(value => {
+        this.lightingSystem.options.shaderShadowAlpha = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'shaderSpecularAlpha', 0, 1, 0.001)
+      .name('Shader specular alpha')
+      .onChange(value => {
+        this.lightingSystem.options.shaderSpecularAlpha = value;
       })
       .listen();
     Game.gui

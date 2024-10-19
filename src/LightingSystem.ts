@@ -51,6 +51,21 @@ type LightingSystemOptions = {
   shader: string | null;
 
   /**
+   * Alpha value for shader highlights
+   */
+  shaderHighlightAlpha: number;
+
+  /**
+   * Alpha value for shader shadows
+   */
+  shaderShadowAlpha: number;
+
+  /**
+   * Alpha value for shader specular highlights
+   */
+  shaderSpecularAlpha: number;
+
+  /**
    * Colour of ambient (global) light
    */
   ambientLightColour: string;
@@ -90,6 +105,9 @@ export class LightingSystem {
     softShadowsAmount: 2,
     shaderEnabled: false,
     shader: null,
+    shaderHighlightAlpha: 0.24,
+    shaderShadowAlpha: 0.32,
+    shaderSpecularAlpha: 1,
     ambientLightColour: 'black',
     wallLightingYOffset: -30,
     wallLightingCutoffDistance: 20,

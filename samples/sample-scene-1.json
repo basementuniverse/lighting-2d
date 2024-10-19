@@ -1,7 +1,7 @@
 {
   "camera": {
     "position": {
-      "x": 953.3333333333328,
+      "x": 1023.3333333333336,
       "y": 636.6666666666671
     },
     "scale": 2.200000000000001
@@ -11,6 +11,9 @@
     "softShadowsEnabled": true,
     "softShadowsAmount": 2,
     "shaderEnabled": true,
+    "shaderHighlightAlpha": 0.24,
+    "shaderShadowAlpha": 0.32,
+    "shaderSpecularAlpha": 1,
     "ambientLightColour": "#555",
     "wallLightingYOffset": -30,
     "wallLightingCutoffDistance": 20,
@@ -469,8 +472,8 @@
       "type": "WallShadowReceiver",
       "id": "9aa067f6",
       "position": {
-        "x": 816,
-        "y": 592
+        "x": 823.2727272727273,
+        "y": 597
       },
       "size": {
         "x": 24.39999999999975,
@@ -1230,10 +1233,10 @@
       "type": "Light",
       "id": "edf1b835",
       "position": {
-        "x": 865.3548302971732,
-        "y": 756.3690074884664
+        "x": 857.1759677769521,
+        "y": 757.7326438521027
       },
-      "radius": 247.97171145686,
+      "radius": 328.0755766361676,
       "colour": "#ffffff99",
       "intensity": 0.2,
       "castShadows": true
@@ -1254,8 +1257,8 @@
       "type": "Light",
       "id": "a09e6623",
       "position": {
-        "x": 796.9358178053868,
-        "y": 590.8219461697712
+        "x": 803.2994541690231,
+        "y": 624.0037643515894
       },
       "radius": 43.21008112826352,
       "colour": "#fd0",
@@ -1266,8 +1269,8 @@
       "type": "Light",
       "id": "03e00d02",
       "position": {
-        "x": 1022.0508250915523,
-        "y": 813.6308990418853
+        "x": 1020.6871887279158,
+        "y": 814.0854444964308
       },
       "radius": 235.8174760617783,
       "colour": "red",

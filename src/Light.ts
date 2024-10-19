@@ -1628,9 +1628,25 @@ export class Light implements Actor {
       'u_wallLightingYOffset',
       this.lightingSystem.options.wallLightingYOffset
     );
+    this.shaderCanvas.setUniform(
+      'u_highlightAlpha',
+      this.lightingSystem.options.shaderHighlightAlpha
+    );
+    this.shaderCanvas.setUniform(
+      'u_shadowAlpha',
+      this.lightingSystem.options.shaderShadowAlpha
+    );
+    this.shaderCanvas.setUniform(
+      'u_specularAlpha',
+      this.lightingSystem.options.shaderSpecularAlpha
+    );
     this.shaderCanvas.setTexture(
       'u_sceneNormalMap',
       this.lightingSystem.sceneNormalMapCanvas as unknown as HTMLImageElement
+    );
+    this.shaderCanvas.setTexture(
+      'u_sceneSpecularMap',
+      this.lightingSystem.sceneSpecularMapCanvas as unknown as HTMLImageElement
     );
     this.shaderCanvas.setTexture(
       'u_groundLightMap',
@@ -1656,12 +1672,6 @@ export class Light implements Actor {
       'u_wall2Mask',
       this.lightingSystem.wallMask2Canvas as unknown as HTMLImageElement
     );
-
-    // TODO
-    // this.shaderCanvas.setUniform('u_t1', this.scene.t1);
-    // this.shaderCanvas.setUniform('u_t2', this.scene.t2);
-    // this.shaderCanvas.setUniform('u_t3', this.scene.t3);
-
     this.shaderCanvas.render();
   }
 
