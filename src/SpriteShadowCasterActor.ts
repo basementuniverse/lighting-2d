@@ -52,8 +52,8 @@ export class SpriteShadowCasterActor implements Actor, SpriteShadowCaster {
     });
 
     this.folder = Game.gui.addFolder(`SpriteShadowCaster ${this.id}`);
-    this.folder.add(this.position, 'x');
-    this.folder.add(this.position, 'y');
+    this.folder.add(this.position, 'x').listen();
+    this.folder.add(this.position, 'y').listen();
     this.folder
       .add(
         this.size,
@@ -61,7 +61,8 @@ export class SpriteShadowCasterActor implements Actor, SpriteShadowCaster {
         SpriteShadowCasterActor.MIN_SIZE.x,
         SpriteShadowCasterActor.MAX_SIZE.x
       )
-      .name('width');
+      .name('width')
+      .listen();
     this.folder
       .add(
         this.size,
@@ -69,12 +70,13 @@ export class SpriteShadowCasterActor implements Actor, SpriteShadowCaster {
         SpriteShadowCasterActor.MIN_SIZE.y,
         SpriteShadowCasterActor.MAX_SIZE.y
       )
-      .name('height');
+      .name('height')
+      .listen();
     this.folder.add(this, 'shadowName');
-    this.folder.add(this.anchor, 'x').name('anchor x');
-    this.folder.add(this.anchor, 'y').name('anchor y');
-    this.folder.add(this.offset, 'x').name('offset x');
-    this.folder.add(this.offset, 'y').name('offset y');
+    this.folder.add(this.anchor, 'x', 0, 1, 0.01).name('anchor x');
+    this.folder.add(this.anchor, 'y', 0, 1, 0.01).name('anchor y');
+    this.folder.add(this.offset, 'x', 0, 1, 0.01).name('offset x');
+    this.folder.add(this.offset, 'y', 0, 1, 0.01).name('offset y');
     this.folder.add(this, 'minShadowLength');
     this.folder.add(this, 'maxShadowLength');
   }
@@ -136,17 +138,20 @@ export class SpriteShadowCasterActor implements Actor, SpriteShadowCaster {
         if (InputManager.keyDown('ShiftLeft')) {
           newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
         }
-        this.size = clampVec(
+        newSize = clampVec(
           newSize,
           SpriteShadowCasterActor.MIN_SIZE,
           SpriteShadowCasterActor.MAX_SIZE
         );
+        this.size.x = newSize.x;
+        this.size.y = newSize.y;
       } else {
         let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
         if (InputManager.keyDown('ShiftLeft')) {
           newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
         }
-        this.position = newPosition;
+        this.position.x = newPosition.x;
+        this.position.y = newPosition.y;
       }
     }
 

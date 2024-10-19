@@ -215,6 +215,10 @@ export class LightingScene extends Scene {
 
   private save(): string {
     return JSON.stringify({
+      camera: {
+        position: this.camera.position,
+        scale: this.camera.scale,
+      },
       options: this.lightingSystem.options,
       groundShadowReceivers: this.groundShadowReceivers.map(g => g.serialise()),
       wallShadowReceivers: this.wallShadowReceivers.map(w => w.serialise()),
@@ -232,6 +236,11 @@ export class LightingScene extends Scene {
     } catch (e) {
       console.error('State data is invalid');
       return;
+    }
+
+    if (state.camera !== undefined) {
+      this.camera.positionImmediate = state.camera.position;
+      this.camera.scaleImmediate = state.camera.scale;
     }
 
     this.lightingSystem.options.imageSmoothingEnabled =

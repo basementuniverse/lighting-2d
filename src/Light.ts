@@ -143,8 +143,8 @@ export class Light implements Actor {
     });
 
     this.folder = Game.gui.addFolder(`Light ${this.id}`);
-    this.folder.add(this.position, 'x');
-    this.folder.add(this.position, 'y');
+    this.folder.add(this.position, 'x').listen();
+    this.folder.add(this.position, 'y').listen();
     this.folder.add(this, 'radius', Light.MIN_RADIUS, Light.MAX_RADIUS);
     this.folder.add(this, 'colour');
     this.folder.add(this, 'intensity', 0, 1);
@@ -265,7 +265,9 @@ export class Light implements Actor {
           Light.MAX_RADIUS
         );
       } else {
-        this.position = vec.sub(mouseWorldPosition, this.dragOffset);
+        const newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
+        this.position.x = newPosition.x;
+        this.position.y = newPosition.y;
       }
     }
 

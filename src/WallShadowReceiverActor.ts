@@ -75,8 +75,8 @@ export class WallShadowReceiverActor
     });
 
     this.folder = Game.gui.addFolder(`WallShadowReceiver ${this.id}`);
-    this.folder.add(this.position, 'x');
-    this.folder.add(this.position, 'y');
+    this.folder.add(this.position, 'x').listen();
+    this.folder.add(this.position, 'y').listen();
     this.folder
       .add(
         this.size,
@@ -84,7 +84,8 @@ export class WallShadowReceiverActor
         WallShadowReceiverActor.MIN_SIZE.x,
         WallShadowReceiverActor.MAX_SIZE.x
       )
-      .name('width');
+      .name('width')
+      .listen();
     this.folder
       .add(
         this.size,
@@ -92,7 +93,8 @@ export class WallShadowReceiverActor
         WallShadowReceiverActor.MIN_SIZE.y,
         WallShadowReceiverActor.MAX_SIZE.y
       )
-      .name('height');
+      .name('height')
+      .listen();
     this.folder.add(this, 'colour');
     this.folder.add(this, 'receiveLight');
     this.folder.add(this, 'spriteName');
@@ -174,17 +176,20 @@ export class WallShadowReceiverActor
         if (InputManager.keyDown('ShiftLeft')) {
           newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
         }
-        this.size = clampVec(
+        newSize = clampVec(
           newSize,
           WallShadowReceiverActor.MIN_SIZE,
           WallShadowReceiverActor.MAX_SIZE
         );
+        this.size.x = newSize.x;
+        this.size.y = newSize.y;
       } else {
         let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
         if (InputManager.keyDown('ShiftLeft')) {
           newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
         }
-        this.position = newPosition;
+        this.position.x = newPosition.x;
+        this.position.y = newPosition.y;
       }
     }
 

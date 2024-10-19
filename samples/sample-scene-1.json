@@ -1,9 +1,17 @@
 {
+  "camera": {
+    "position": {
+      "x": 966.6666666666663,
+      "y": 636.6666666666671
+    },
+    "scale": 2.200000000000001
+  },
   "options": {
     "imageSmoothingEnabled": false,
     "softShadowsEnabled": true,
     "softShadowsAmount": 2,
     "normalMappingEnabled": true,
+    "normalMappingShader": "precision mediump float;\n\nuniform vec4 u_lightColour;\nuniform vec2 u_resolution;\nuniform vec2 u_lightScreenPositionTopLeft;\nuniform vec2 u_lightScreenPositionBottomRight;\nuniform float u_wallLightingYOffset;\n\nuniform sampler2D u_sceneNormalMap;\nuniform sampler2D u_groundLightMap;\nuniform sampler2D u_wall1LightMap;\nuniform sampler2D u_wall2LightMap;\nuniform sampler2D u_groundMask;\nuniform sampler2D u_wall1Mask;\nuniform sampler2D u_wall2Mask;\n\nfloat LIGHT_HEIGHT = -0.3;\nfloat WALL_NORMAL_Z_OFFSET = 0.2;\n\nfloat HIGHLIGHT_THRESHOLD = 0.849;\nfloat HIGHLIGHT_OFFSET = 0.25;\nfloat HIGHLIGHT_ALPHA = 0.69;\n\nfloat SHADOW_THRESHOLD = 0.121;\nfloat SHADOW_ALPHA = 0.34;\n\nfloat SHADING_FALLOFF = 1.788;\nfloat SHADING_OFFSET = 2.244;\nfloat SHADING_BANDING = 0.1;\n\nfloat remap(float i, float a1, float a2, float b1, float b2) {\n  return b1 + (i - a1) * (b2 - b1) / (a2 - a1);\n}\n\nfloat avg(vec3 a) {\n  return (a.r + a.g + a.b) / 3.0;\n}\n\nfloat band(float a, float p) {\n  float ip = 1.0 / p;\n  return floor((a - p) * ip) / ip;\n}\n\nbool floatEquals(float a, float b, float epsilon) {\n  return abs(a - b) < epsilon;\n}\n\nbool isTransparent(vec4 color) {\n  return floatEquals(color.a, 0.0, 0.01);\n}\n\nbool isBlack(vec4 color) {\n  return (\n    floatEquals(color.r, 0.0, 0.01) &&\n    floatEquals(color.g, 0.0, 0.01) &&\n    floatEquals(color.b, 0.0, 0.01)\n  );\n}\n\nvoid main() {\n  vec2 uv = gl_FragCoord.xy / u_resolution;\n  vec2 screenUV = vec2(\n    remap(\n      uv.x,\n      0.0,\n      1.0,\n      u_lightScreenPositionTopLeft.x,\n      u_lightScreenPositionBottomRight.x\n    ),\n    1.0 - remap(\n      uv.y,\n      0.0,\n      1.0,\n      u_lightScreenPositionBottomRight.y,\n      u_lightScreenPositionTopLeft.y\n    )\n  );\n\n  vec4 sceneNormal = texture2D(u_sceneNormalMap, screenUV);\n\n  vec2 lightDirection = normalize(uv - vec2(0.5));\n  vec3 lightNormal = normalize(vec3(\n    lightDirection.x,\n    -lightDirection.y,\n    LIGHT_HEIGHT\n  ));\n\n  // Ground\n  vec4 groundMask = texture2D(u_groundMask, screenUV);\n  if (!isTransparent(groundMask)) {\n    vec4 groundLight = texture2D(u_groundLightMap, uv);\n\n    if (isBlack(groundLight)) {\n      gl_FragColor = vec4(0.0);\n      return;\n    }\n\n    float light = -dot(\n      normalize(sceneNormal.rgb - vec3(0.5)),\n      lightNormal\n    );\n    float falloff = pow(avg(groundLight.rgb) * SHADING_OFFSET, SHADING_FALLOFF);\n\n    if (light >= HIGHLIGHT_THRESHOLD) {\n      vec4 highlight = vec4(\n        vec3(clamp(u_lightColour.rgb + HIGHLIGHT_OFFSET, 0.0, 1.0)),\n        u_lightColour.a\n      );\n      float amount = clamp(\n        band(\n          (0.5 + 0.5 * light) * falloff * highlight.a * HIGHLIGHT_ALPHA,\n          SHADING_BANDING\n        ),\n        0.0,\n        1.0\n      );\n\n      gl_FragColor = vec4(highlight.rgb * amount, amount);\n      return;\n    }\n\n    if (light <= SHADOW_THRESHOLD) {\n      vec4 shadow = vec4(0.0, 0.0, 0.0, 1.0);\n      float amount = clamp(\n        band(\n          (0.5 - 0.5 * light) * falloff * SHADOW_ALPHA,\n          SHADING_BANDING\n        ),\n        0.0,\n        1.0\n      );\n\n      gl_FragColor = vec4(shadow.rgb * amount, amount);\n      return;\n    }\n\n    gl_FragColor = vec4(0.0);\n    return;\n  }\n\n  // Wall layer 1\n  vec2 wallLightingYOffset = vec2(0.0, u_wallLightingYOffset / u_resolution.y);\n  vec4 wall1Mask = texture2D(u_wall1Mask, screenUV);\n  if (!isTransparent(wall1Mask)) {\n    vec4 wallLight = texture2D(u_wall1LightMap, uv + wallLightingYOffset);\n\n    if (isBlack(wallLight)) {\n      gl_FragColor = vec4(0.0);\n      return;\n    }\n\n    float light = -dot(\n      normalize(sceneNormal.rgb - vec3(0.5, 0.5, 0.5 + WALL_NORMAL_Z_OFFSET)),\n      lightNormal\n    );\n    float falloff = pow(avg(wallLight.rgb) * SHADING_OFFSET, SHADING_FALLOFF);\n\n    if (light >= HIGHLIGHT_THRESHOLD) {\n      vec4 highlight = vec4(\n        vec3(clamp(u_lightColour.rgb + HIGHLIGHT_OFFSET, 0.0, 1.0)),\n        u_lightColour.a\n      );\n      float amount = clamp(\n        band(\n          (0.5 + 0.5 * light) * falloff * highlight.a * HIGHLIGHT_ALPHA,\n          SHADING_BANDING\n        ),\n        0.0,\n        1.0\n      );\n\n      gl_FragColor = vec4(highlight.rgb * amount, amount);\n      return;\n    }\n\n    if (light <= SHADOW_THRESHOLD) {\n      vec4 shadow = vec4(0.0, 0.0, 0.0, 1.0);\n      float amount = clamp(\n        band(\n          (0.5 - 0.5 * light) * falloff * SHADOW_ALPHA,\n          SHADING_BANDING\n        ),\n        0.0,\n        1.0\n      );\n\n      gl_FragColor = vec4(shadow.rgb * amount, amount);\n      return;\n    }\n\n    gl_FragColor = vec4(0.0);\n    return;\n  }\n\n  // Wall layer 2\n  vec4 wall2Mask = texture2D(u_wall2Mask, screenUV);\n  if (!isTransparent(wall2Mask)) {\n    vec4 wallLight = texture2D(u_wall2LightMap, uv + wallLightingYOffset);\n\n    if (isBlack(wallLight)) {\n      gl_FragColor = vec4(0.0);\n      return;\n    }\n\n    float light = -dot(\n      normalize(sceneNormal.rgb - vec3(0.5, 0.5, 0.5 + WALL_NORMAL_Z_OFFSET)),\n      lightNormal\n    );\n    float falloff = pow(avg(wallLight.rgb) * SHADING_OFFSET, SHADING_FALLOFF);\n\n    if (light >= HIGHLIGHT_THRESHOLD) {\n      vec4 highlight = vec4(\n        vec3(clamp(u_lightColour.rgb + HIGHLIGHT_OFFSET, 0.0, 1.0)),\n        u_lightColour.a\n      );\n      float amount = clamp(\n        band(\n          (0.5 + 0.5 * light) * falloff * highlight.a * HIGHLIGHT_ALPHA,\n          SHADING_BANDING\n        ),\n        0.0,\n        1.0\n      );\n\n      gl_FragColor = vec4(highlight.rgb * amount, amount);\n      return;\n    }\n\n    if (light <= SHADOW_THRESHOLD) {\n      vec4 shadow = vec4(0.0, 0.0, 0.0, 1.0);\n      float amount = clamp(\n        band(\n          (0.5 - 0.5 * light) * falloff * SHADOW_ALPHA,\n          SHADING_BANDING\n        ),\n        0.0,\n        1.0\n      );\n\n      gl_FragColor = vec4(shadow.rgb * amount, amount);\n      return;\n    }\n\n    gl_FragColor = vec4(0.0);\n    return;\n  }\n}\n",
     "ambientLightColour": "#555",
     "wallLightingYOffset": -30,
     "wallLightingCutoffDistance": 20,
@@ -213,82 +221,6 @@
     },
     {
       "type": "WallShadowReceiver",
-      "id": "b2cee7f6",
-      "position": {
-        "x": 752,
-        "y": 496
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
-      "id": "40af70e5",
-      "position": {
-        "x": 848,
-        "y": 496
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
-      "id": "63aac9ae",
-      "position": {
-        "x": 944,
-        "y": 496
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
-      "id": "0b2fa62d",
-      "position": {
-        "x": 992,
-        "y": 496
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
       "id": "1f26b8a3",
       "position": {
         "x": 1040,
@@ -322,6 +254,82 @@
       "spriteName": "wall-top",
       "maskName": "",
       "normalMapName": "",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "9c227c9a",
+      "position": {
+        "x": 752,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "45259601",
+      "position": {
+        "x": 848,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "f3a81f19",
+      "position": {
+        "x": 944,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "07943b9e",
+      "position": {
+        "x": 992,
+        "y": 496
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
       "spriteRepeat": false,
       "layer": "one"
     },
@@ -424,12 +432,12 @@
       "type": "WallShadowReceiver",
       "id": "9aa067f6",
       "position": {
-        "x": 816,
-        "y": 592
+        "x": 823.2,
+        "y": 598.4
       },
       "size": {
-        "x": 32,
-        "y": 32
+        "x": 24.39999999999975,
+        "y": 31.7999999999995
       },
       "colour": "",
       "receiveLight": true,
@@ -688,101 +696,6 @@
     },
     {
       "type": "WallShadowReceiver",
-      "id": "beb401fc",
-      "position": {
-        "x": 896,
-        "y": 736
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
-      "id": "9c03d361",
-      "position": {
-        "x": 992,
-        "y": 736
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
-      "id": "50240b91",
-      "position": {
-        "x": 944,
-        "y": 736
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
-      "id": "d7d77aa5",
-      "position": {
-        "x": 800,
-        "y": 736
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
-      "id": "4b23e862",
-      "position": {
-        "x": 752,
-        "y": 736
-      },
-      "size": {
-        "x": 48,
-        "y": 48
-      },
-      "colour": "",
-      "receiveLight": true,
-      "spriteName": "wall1",
-      "maskName": "wall1-mask",
-      "normalMapName": "wall1-normal",
-      "spriteRepeat": false,
-      "layer": "one"
-    },
-    {
-      "type": "WallShadowReceiver",
       "id": "eea6a037",
       "position": {
         "x": 704,
@@ -790,7 +703,102 @@
       },
       "size": {
         "x": 48,
-        "y": 48
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "cc0d7846",
+      "position": {
+        "x": 752,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "3847bef7",
+      "position": {
+        "x": 800,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "cfcec1f6",
+      "position": {
+        "x": 896,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "e288a430",
+      "position": {
+        "x": 944,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
+      },
+      "colour": "",
+      "receiveLight": true,
+      "spriteName": "wall1",
+      "maskName": "wall1-mask",
+      "normalMapName": "wall1-normal",
+      "spriteRepeat": false,
+      "layer": "one"
+    },
+    {
+      "type": "WallShadowReceiver",
+      "id": "4ad37e7e",
+      "position": {
+        "x": 992,
+        "y": 736
+      },
+      "size": {
+        "x": 48,
+        "y": 53.816124469589816
       },
       "colour": "",
       "receiveLight": true,
@@ -1144,11 +1152,11 @@
       "type": "CircleShadowCaster",
       "id": "a0987c95",
       "position": {
-        "x": 816,
-        "y": 608
+        "x": 823.1999999999999,
+        "y": 610.4
       },
       "size": {
-        "x": 32,
+        "x": 23.999999999999773,
         "y": 16
       },
       "anchor": {
@@ -1165,10 +1173,10 @@
       "type": "Light",
       "id": "edf1b835",
       "position": {
-        "x": 857.3184666608095,
-        "y": 779.6780983975577
+        "x": 910.3548302971733,
+        "y": 651.3690074884665
       },
-      "radius": 400,
+      "radius": 247.97171145686,
       "colour": "#ffffff99",
       "intensity": 0.2,
       "castShadows": true

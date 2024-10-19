@@ -49,8 +49,8 @@ export class CircleShadowCasterActor implements Actor, CircleShadowCaster {
     });
 
     this.folder = Game.gui.addFolder(`CircleShadowCaster ${this.id}`);
-    this.folder.add(this.position, 'x');
-    this.folder.add(this.position, 'y');
+    this.folder.add(this.position, 'x').listen();
+    this.folder.add(this.position, 'y').listen();
     this.folder
       .add(
         this.size,
@@ -58,7 +58,8 @@ export class CircleShadowCasterActor implements Actor, CircleShadowCaster {
         CircleShadowCasterActor.MIN_SIZE.x,
         CircleShadowCasterActor.MAX_SIZE.x
       )
-      .name('width');
+      .name('width')
+      .listen();
     this.folder
       .add(
         this.size,
@@ -66,12 +67,13 @@ export class CircleShadowCasterActor implements Actor, CircleShadowCaster {
         CircleShadowCasterActor.MIN_SIZE.y,
         CircleShadowCasterActor.MAX_SIZE.y
       )
-      .name('height');
+      .name('height')
+      .listen();
     this.folder.add(this.anchor, 'x').name('anchor x');
     this.folder.add(this.anchor, 'y').name('anchor y');
     this.folder.add(this, 'minShadowDistance');
     this.folder.add(this, 'maxShadowDistance');
-    this.folder.add(this, 'alpha');
+    this.folder.add(this, 'alpha', 0, 1, 0.01);
   }
 
   public serialise(): any {
@@ -126,17 +128,20 @@ export class CircleShadowCasterActor implements Actor, CircleShadowCaster {
         if (InputManager.keyDown('ShiftLeft')) {
           newSize = quantizeVec(newSize, LightingScene.GRID_SIZE);
         }
-        this.size = clampVec(
+        newSize = clampVec(
           newSize,
           CircleShadowCasterActor.MIN_SIZE,
           CircleShadowCasterActor.MAX_SIZE
         );
+        this.size.x = newSize.x;
+        this.size.y = newSize.y;
       } else {
         let newPosition = vec.sub(mouseWorldPosition, this.dragOffset);
         if (InputManager.keyDown('ShiftLeft')) {
           newPosition = quantizeVec(newPosition, LightingScene.GRID_SIZE);
         }
-        this.position = newPosition;
+        this.position.x = newPosition.x;
+        this.position.y = newPosition.y;
       }
     }
 
