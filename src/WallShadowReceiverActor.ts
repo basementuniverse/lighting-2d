@@ -8,6 +8,7 @@ import {
   Actor,
   Mergeable,
   NormalMappable,
+  SpecularMappable,
   WallShadowReceiver,
 } from './contracts';
 import Game from './Game';
@@ -27,6 +28,7 @@ export class WallShadowReceiverActor
     Actor,
     WallShadowReceiver,
     NormalMappable,
+    SpecularMappable,
     Mergeable<WallShadowReceiverActor>
 {
   private static readonly DEFAULT_SIZE = vec(64, 64);
@@ -35,6 +37,7 @@ export class WallShadowReceiverActor
   private static readonly DEFAULT_SPRITE_NAME = 'wall1';
   private static readonly DEFAULT_MASK_NAME = 'wall1-mask';
   private static readonly DEFAULT_NORMAL_MAP_NAME = 'wall1-normal';
+  private static readonly DEFAULT_SPECULAR_MAP_NAME = '';
   private static readonly DEFAULT_SPRITE_REPEAT = false;
   private static readonly DEFAULT_LAYER = WallShadowLayer.One;
   private static readonly DEBUG_COLOUR = '#f83';
@@ -56,6 +59,8 @@ export class WallShadowReceiverActor
   public maskName: string = WallShadowReceiverActor.DEFAULT_MASK_NAME;
   public normalMapName: string =
     WallShadowReceiverActor.DEFAULT_NORMAL_MAP_NAME;
+  public specularMapName: string =
+    WallShadowReceiverActor.DEFAULT_SPECULAR_MAP_NAME;
   public spriteRepeat: boolean = WallShadowReceiverActor.DEFAULT_SPRITE_REPEAT;
   public layer: WallShadowLayer = WallShadowReceiverActor.DEFAULT_LAYER;
 
@@ -100,6 +105,7 @@ export class WallShadowReceiverActor
     this.folder.add(this, 'spriteName');
     this.folder.add(this, 'maskName');
     this.folder.add(this, 'normalMapName');
+    this.folder.add(this, 'specularMapName');
     this.folder.add(this, 'spriteRepeat');
     this.folder.add(this, 'layer', Object.values(WallShadowLayer));
   }
@@ -115,6 +121,7 @@ export class WallShadowReceiverActor
       spriteName: this.spriteName,
       maskName: this.maskName,
       normalMapName: this.normalMapName,
+      specularMapName: this.specularMapName,
       spriteRepeat: this.spriteRepeat,
       layer: this.layer,
     };
@@ -321,6 +328,46 @@ export class WallShadowReceiverActor
       }
     } else {
       context.fillStyle = LightingSystem.NORMAL_MAP_DEFAULT_COLOUR;
+      context.fillRect(
+        this.position.x,
+        this.position.y,
+        this.size.x,
+        this.size.y
+      );
+    }
+
+    context.restore();
+  }
+
+  public drawSpecularMap(context: CanvasRenderingContext2D) {
+    context.save();
+
+    const image = ContentManager.get<HTMLImageElement>(this.specularMapName);
+    if (image) {
+      if (this.spriteRepeat) {
+        const pattern = context.createPattern(image, 'repeat');
+        if (pattern) {
+          context.fillStyle = pattern;
+          context.beginPath();
+          context.rect(
+            this.position.x,
+            this.position.y,
+            this.size.x,
+            this.size.y
+          );
+          context.fill();
+        }
+      } else {
+        context.drawImage(
+          image,
+          this.position.x,
+          this.position.y,
+          this.size.x,
+          this.size.y
+        );
+      }
+    } else {
+      context.fillStyle = LightingSystem.SPECULAR_MAP_DEFAULT_COLOUR;
       context.fillRect(
         this.position.x,
         this.position.y,

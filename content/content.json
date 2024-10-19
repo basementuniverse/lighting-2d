@@ -1,8 +1,8 @@
 [
   {
-    "name": "normal-mapping-shader",
+    "name": "lighting-shader",
     "type": "text",
-    "args": ["http://localhost:8080/content/shaders/normal-mapping.glsl"]
+    "args": ["http://localhost:8080/content/shaders/lighting.glsl"]
   },
   {
     "name": "anvil",
@@ -18,6 +18,11 @@
     "name": "anvil-normal",
     "type": "image",
     "args": ["./content/images/anvil-normal.png"]
+  },
+  {
+    "name": "anvil-specular",
+    "type": "image",
+    "args": ["./content/images/anvil-specular.png"]
   },
   {
     "name": "character",
@@ -80,6 +85,11 @@
     "args": ["./content/images/ground4-normal.png"]
   },
   {
+    "name": "ground4-specular",
+    "type": "image",
+    "args": ["./content/images/ground4-specular.png"]
+  },
+  {
     "name": "light",
     "type": "image",
     "args": ["./content/images/light.png"]
@@ -113,6 +123,11 @@
     "name": "urn-normal",
     "type": "image",
     "args": ["./content/images/urn-normal.png"]
+  },
+  {
+    "name": "urn-specular",
+    "type": "image",
+    "args": ["./content/images/urn-specular.png"]
   },
   {
     "name": "wall-top",
@@ -163,6 +178,11 @@
     "name": "wall3-normal",
     "type": "image",
     "args": ["./content/images/wall3-normal.png"]
+  },
+  {
+    "name": "wall3-specular",
+    "type": "image",
+    "args": ["./content/images/wall3-specular.png"]
   },
   {
     "name": "well",

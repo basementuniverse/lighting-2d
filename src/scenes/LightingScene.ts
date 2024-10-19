@@ -27,9 +27,10 @@ enum LightingSceneRenderMode {
   SelectedGroundLightMap = 'selected-ground',
   SelectedWall1LightMap = 'selected-wall1',
   SelectedWall2LightMap = 'selected-wall2',
-  SelectedNormalMapping = 'selected-normalmapping',
+  SelectedShading = 'selected-shading',
   LightMap = 'lightmap',
   SceneNormalMap = 'scenenormalmap',
+  SceneSpecularMap = 'scenespecularmap',
 }
 
 export class LightingScene extends Scene {
@@ -59,6 +60,10 @@ export class LightingScene extends Scene {
   public mode: LightingSceneRenderMode = LightingSceneRenderMode.Normal;
   public showHelp: boolean = false;
 
+  public t1: number = 0.69;
+  public t2: number = 0.34;
+  public t3: number = 0.25;
+
   public initialise() {
     // Camera
     this.camera = new Camera(vec(), {
@@ -74,12 +79,18 @@ export class LightingScene extends Scene {
       imageSmoothingEnabled: false,
       softShadowsEnabled: true,
       softShadowsAmount: 2.5,
-      normalMappingEnabled: true,
-      normalMappingShader: ContentManager.get('normal-mapping-shader'),
+      shaderEnabled: true,
+      shader: ContentManager.get('lighting-shader'),
     });
     this.lightingSystem.initialise();
 
     // GUI controls
+
+    // TODO
+    // Game.gui.add(this, 't1').name('highlight alpha');
+    // Game.gui.add(this, 't2').name('shadow alpha');
+    // Game.gui.add(this, 't3').name('highlight offset');
+
     Game.gui
       .add(this, 'mode', Object.values(LightingSceneRenderMode))
       .name('Render mode');
@@ -139,10 +150,10 @@ export class LightingScene extends Scene {
       })
       .listen();
     Game.gui
-      .add(this.lightingSystem.options, 'normalMappingEnabled')
-      .name('Normal mapping enabled')
+      .add(this.lightingSystem.options, 'shaderEnabled')
+      .name('Shader enabled')
       .onChange(value => {
-        this.lightingSystem.options.normalMappingEnabled = value;
+        this.lightingSystem.options.shaderEnabled = value;
       })
       .listen();
     Game.gui
@@ -219,7 +230,7 @@ export class LightingScene extends Scene {
         position: this.camera.position,
         scale: this.camera.scale,
       },
-      options: this.lightingSystem.options,
+      options: exclude(this.lightingSystem.options, 'shader'),
       groundShadowReceivers: this.groundShadowReceivers.map(g => g.serialise()),
       wallShadowReceivers: this.wallShadowReceivers.map(w => w.serialise()),
       regionShadowCasters: this.regionShadowCasters.map(r => r.serialise()),
@@ -249,8 +260,7 @@ export class LightingScene extends Scene {
       state.options.softShadowsEnabled;
     this.lightingSystem.options.softShadowsAmount =
       state.options.softShadowsAmount;
-    this.lightingSystem.options.normalMappingEnabled =
-      state.options.normalMappingEnabled;
+    this.lightingSystem.options.shaderEnabled = state.options.shaderEnabled;
     this.lightingSystem.options.ambientLightColour =
       state.options.ambientLightColour;
     this.lightingSystem.options.wallLightingYOffset =
@@ -506,8 +516,9 @@ export class LightingScene extends Scene {
         case 'GroundShadowReceiver':
           this.groundShadowReceivers.push(
             GroundShadowReceiverActor.deserialise(this, {
-              ...exclude(this.selected.serialise(), 'id', 'position'),
+              ...exclude(this.selected.serialise(), 'id', 'position', 'size'),
               position: vec.cpy(mouseWorldPosition),
+              size: vec.cpy(this.selected.size),
             })
           );
           break;
@@ -515,8 +526,9 @@ export class LightingScene extends Scene {
         case 'WallShadowReceiver':
           this.wallShadowReceivers.push(
             WallShadowReceiverActor.deserialise(this, {
-              ...exclude(this.selected.serialise(), 'id', 'position'),
+              ...exclude(this.selected.serialise(), 'id', 'position', 'size'),
               position: vec.cpy(mouseWorldPosition),
+              size: vec.cpy(this.selected.size),
             })
           );
           break;
@@ -524,8 +536,9 @@ export class LightingScene extends Scene {
         case 'RegionShadowCaster':
           this.regionShadowCasters.push(
             RegionShadowCasterActor.deserialise(this, {
-              ...exclude(this.selected.serialise(), 'id', 'position'),
+              ...exclude(this.selected.serialise(), 'id', 'position', 'size'),
               position: vec.cpy(mouseWorldPosition),
+              size: vec.cpy(this.selected.size),
             })
           );
           break;
@@ -533,8 +546,9 @@ export class LightingScene extends Scene {
         case 'SpriteShadowCaster':
           this.spriteShadowCasters.push(
             SpriteShadowCasterActor.deserialise(this, {
-              ...exclude(this.selected.serialise(), 'id', 'position'),
+              ...exclude(this.selected.serialise(), 'id', 'position', 'size'),
               position: vec.cpy(mouseWorldPosition),
+              size: vec.cpy(this.selected.size),
             })
           );
           break;
@@ -542,8 +556,9 @@ export class LightingScene extends Scene {
         case 'CircleShadowCaster':
           this.circleShadowCasters.push(
             CircleShadowCasterActor.deserialise(this, {
-              ...exclude(this.selected.serialise(), 'id', 'position'),
+              ...exclude(this.selected.serialise(), 'id', 'position', 'size'),
               position: vec.cpy(mouseWorldPosition),
+              size: vec.cpy(this.selected.size),
             })
           );
           break;
@@ -623,6 +638,10 @@ export class LightingScene extends Scene {
         context.restore();
 
         this.lightingSystem.drawSceneNormalMap(this.camera, [
+          ...this.groundShadowReceivers,
+          ...this.wallShadowReceivers,
+        ]);
+        this.lightingSystem.drawSceneSpecularMap(this.camera, [
           ...this.groundShadowReceivers,
           ...this.wallShadowReceivers,
         ]);
@@ -803,16 +822,20 @@ export class LightingScene extends Scene {
         context.restore();
         break;
 
-      case LightingSceneRenderMode.SelectedNormalMapping:
+      case LightingSceneRenderMode.SelectedShading:
         if (!this.selected || this.selected.type !== 'Light') {
           break;
         }
 
-        if (!this.selected.normalMappingCanvas) {
+        if (!this.selected.shaderCanvas) {
           break;
         }
 
         this.lightingSystem.drawSceneNormalMap(this.camera, [
+          ...this.groundShadowReceivers,
+          ...this.wallShadowReceivers,
+        ]);
+        this.lightingSystem.drawSceneSpecularMap(this.camera, [
           ...this.groundShadowReceivers,
           ...this.wallShadowReceivers,
         ]);
@@ -827,7 +850,7 @@ export class LightingScene extends Scene {
         context.save();
         this.camera.setTransforms(context);
         context.drawImage(
-          this.selected.normalMappingCanvas.domElement,
+          this.selected.shaderCanvas.domElement,
           this.selected.position.x - this.selected.radius,
           this.selected.position.y - this.selected.radius
         );
@@ -852,6 +875,14 @@ export class LightingScene extends Scene {
           ...this.wallShadowReceivers,
         ]);
         context.drawImage(this.lightingSystem.sceneNormalMapCanvas, 0, 0);
+        break;
+
+      case LightingSceneRenderMode.SceneSpecularMap:
+        this.lightingSystem.drawSceneSpecularMap(this.camera, [
+          ...this.groundShadowReceivers,
+          ...this.wallShadowReceivers,
+        ]);
+        context.drawImage(this.lightingSystem.sceneSpecularMapCanvas, 0, 0);
         break;
     }
 

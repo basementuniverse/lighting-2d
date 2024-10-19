@@ -3,19 +3,25 @@ import Debug from '@basementuniverse/debug';
 import InputManager from '@basementuniverse/input-manager';
 import { vec } from '@basementuniverse/vec';
 import { v4 as uuid } from 'uuid';
-import { Actor, NormalMappable, ShadowReceiver } from './contracts';
+import {
+  Actor,
+  NormalMappable,
+  ShadowReceiver,
+  SpecularMappable,
+} from './contracts';
 import Game from './Game';
 import { LightingSystem } from './LightingSystem';
 import { LightingScene } from './scenes/LightingScene';
 import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
 export class GroundShadowReceiverActor
-  implements Actor, ShadowReceiver, NormalMappable
+  implements Actor, ShadowReceiver, NormalMappable, SpecularMappable
 {
   private static readonly DEFAULT_SIZE = vec(256, 256);
   private static readonly DEFAULT_COLOUR = '#ddd';
   private static readonly DEFAULT_SPRITE_NAME = 'ground1';
   private static readonly DEFAULT_NORMAL_MAP_NAME = 'ground1-normal';
+  private static readonly DEFAULT_SPECULAR_MAP_NAME = '';
   private static readonly DEBUG_COLOUR = '#36c';
   private static readonly DEBUG_HOVER_COLOUR = '#58e';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -33,6 +39,8 @@ export class GroundShadowReceiverActor
   public spriteName: string = GroundShadowReceiverActor.DEFAULT_SPRITE_NAME;
   public normalMapName: string =
     GroundShadowReceiverActor.DEFAULT_NORMAL_MAP_NAME;
+  public specularMapName: string =
+    GroundShadowReceiverActor.DEFAULT_SPECULAR_MAP_NAME;
 
   public hovered = false;
   public selected = false;
@@ -73,6 +81,7 @@ export class GroundShadowReceiverActor
     this.folder.add(this, 'colour');
     this.folder.add(this, 'spriteName');
     this.folder.add(this, 'normalMapName');
+    this.folder.add(this, 'specularMapName');
   }
 
   public serialise(): any {
@@ -84,6 +93,7 @@ export class GroundShadowReceiverActor
       colour: this.colour,
       spriteName: this.spriteName,
       normalMapName: this.normalMapName,
+      specularMapName: this.specularMapName,
     };
   }
 
@@ -220,6 +230,36 @@ export class GroundShadowReceiverActor
       }
     } else {
       context.fillStyle = LightingSystem.NORMAL_MAP_DEFAULT_COLOUR;
+      context.fillRect(
+        this.position.x,
+        this.position.y,
+        this.size.x,
+        this.size.y
+      );
+    }
+
+    context.restore();
+  }
+
+  public drawSpecularMap(context: CanvasRenderingContext2D) {
+    context.save();
+
+    const image = ContentManager.get<HTMLImageElement>(this.specularMapName);
+    if (image) {
+      const pattern = context.createPattern(image, 'repeat');
+      if (pattern) {
+        context.fillStyle = pattern;
+        context.beginPath();
+        context.rect(
+          this.position.x,
+          this.position.y,
+          this.size.x,
+          this.size.y
+        );
+        context.fill();
+      }
+    } else {
+      context.fillStyle = LightingSystem.SPECULAR_MAP_DEFAULT_COLOUR;
       context.fillRect(
         this.position.x,
         this.position.y,

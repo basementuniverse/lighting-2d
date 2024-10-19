@@ -123,7 +123,7 @@ export class Light implements Actor {
   public wallLight2Canvas: HTMLCanvasElement;
   private wallLight2Context: CanvasRenderingContext2D;
 
-  public normalMappingCanvas: ShaderCanvas;
+  public shaderCanvas: ShaderCanvas;
 
   private dirty = true;
 
@@ -171,17 +171,12 @@ export class Light implements Actor {
       this._radius * 2;
     this.wallLight2Context = this.wallLight2Canvas.getContext('2d')!;
 
-    if (
-      lightingSystem.options.normalMappingEnabled &&
-      lightingSystem.options.normalMappingShader
-    ) {
-      this.normalMappingCanvas = new ShaderCanvas();
+    if (lightingSystem.options.shaderEnabled && lightingSystem.options.shader) {
+      this.shaderCanvas = new ShaderCanvas();
 
       const s = (this._radius * 2) / window.devicePixelRatio;
-      this.normalMappingCanvas.setSize(s, s);
-      this.normalMappingCanvas.setShader(
-        lightingSystem.options.normalMappingShader
-      );
+      this.shaderCanvas.setSize(s, s);
+      this.shaderCanvas.setShader(lightingSystem.options.shader);
     }
   }
 
@@ -353,14 +348,14 @@ export class Light implements Actor {
       this._radius * 2;
     this.wallLight2Context.drawImage(this.lightCanvas, 0, 0);
 
-    // Prepare full-wall shading based on whether the wall is above or below
+    // Prepare full-wall shadows based on whether the wall is above or below
     // the light position
-    this.prepareInitialShading(
+    this.prepareFullWallShadows(
       this.wallLight1Context,
       lightRectangle,
       wallShadowReceivers
     );
-    this.prepareInitialShading(
+    this.prepareFullWallShadows(
       this.wallLight2Context,
       lightRectangle,
       wallShadowReceivers
@@ -389,9 +384,9 @@ export class Light implements Actor {
     }
 
     // If normal mapping is enabled, prepare the normal mapping canvas
-    if (this.lightingSystem.options.normalMappingEnabled) {
+    if (this.lightingSystem.options.shaderEnabled) {
       try {
-        this.prepareNormalMapping(camera);
+        this.prepareShader(camera);
       } catch (e) {
         if (constants.DEBUG) {
           console.error(e);
@@ -437,7 +432,7 @@ export class Light implements Actor {
     this.lightContext.restore();
   }
 
-  private prepareInitialShading(
+  private prepareFullWallShadows(
     context: CanvasRenderingContext2D,
     lightRectangle: Rectangle,
     wallShadowReceivers: WallShadowReceiver[]
@@ -1597,8 +1592,8 @@ export class Light implements Actor {
     };
   }
 
-  private prepareNormalMapping(camera: Camera) {
-    if (!this.normalMappingCanvas) {
+  private prepareShader(camera: Camera) {
+    if (!this.shaderCanvas) {
       return;
     }
 
@@ -1610,58 +1605,64 @@ export class Light implements Actor {
     );
 
     const s = (this._radius * 2) / window.devicePixelRatio;
-    this.normalMappingCanvas.setSize(s, s);
-    this.normalMappingCanvas.setUniform('u_resolution', [
+    this.shaderCanvas.setSize(s, s);
+    this.shaderCanvas.setUniform('u_resolution', [
       this._radius * 2,
       this._radius * 2,
     ]);
-    this.normalMappingCanvas.setUniform('u_lightColour', [
+    this.shaderCanvas.setUniform('u_lightColour', [
       this.colourObject.r / 255,
       this.colourObject.g / 255,
       this.colourObject.b / 255,
       this.colourObject.a,
     ]);
-    this.normalMappingCanvas.setUniform('u_lightScreenPositionTopLeft', [
+    this.shaderCanvas.setUniform('u_lightScreenPositionTopLeft', [
       lightTopLeftScreenPosition.x / Game.screen.x,
       lightTopLeftScreenPosition.y / Game.screen.y,
     ]);
-    this.normalMappingCanvas.setUniform('u_lightScreenPositionBottomRight', [
+    this.shaderCanvas.setUniform('u_lightScreenPositionBottomRight', [
       lightBottomRightScreenPosition.x / Game.screen.x,
       lightBottomRightScreenPosition.y / Game.screen.y,
     ]);
-    this.normalMappingCanvas.setUniform(
+    this.shaderCanvas.setUniform(
       'u_wallLightingYOffset',
       this.lightingSystem.options.wallLightingYOffset
     );
-    this.normalMappingCanvas.setTexture(
+    this.shaderCanvas.setTexture(
       'u_sceneNormalMap',
       this.lightingSystem.sceneNormalMapCanvas as unknown as HTMLImageElement
     );
-    this.normalMappingCanvas.setTexture(
+    this.shaderCanvas.setTexture(
       'u_groundLightMap',
       this.groundLightCanvas as unknown as HTMLImageElement
     );
-    this.normalMappingCanvas.setTexture(
+    this.shaderCanvas.setTexture(
       'u_wall1LightMap',
       this.wallLight1Canvas as unknown as HTMLImageElement
     );
-    this.normalMappingCanvas.setTexture(
+    this.shaderCanvas.setTexture(
       'u_wall2LightMap',
       this.wallLight2Canvas as unknown as HTMLImageElement
     );
-    this.normalMappingCanvas.setTexture(
+    this.shaderCanvas.setTexture(
       'u_groundMask',
       this.lightingSystem.groundMaskCanvas as unknown as HTMLImageElement
     );
-    this.normalMappingCanvas.setTexture(
+    this.shaderCanvas.setTexture(
       'u_wall1Mask',
       this.lightingSystem.wallMask1Canvas as unknown as HTMLImageElement
     );
-    this.normalMappingCanvas.setTexture(
+    this.shaderCanvas.setTexture(
       'u_wall2Mask',
       this.lightingSystem.wallMask2Canvas as unknown as HTMLImageElement
     );
-    this.normalMappingCanvas.render();
+
+    // TODO
+    // this.shaderCanvas.setUniform('u_t1', this.scene.t1);
+    // this.shaderCanvas.setUniform('u_t2', this.scene.t2);
+    // this.shaderCanvas.setUniform('u_t3', this.scene.t3);
+
+    this.shaderCanvas.render();
   }
 
   public draw(context: CanvasRenderingContext2D) {}

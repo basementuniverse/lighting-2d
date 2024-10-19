@@ -6,5 +6,6 @@ export * from './NormalMappable';
 export * from './RegionShadowCaster';
 export * from './ShadowCaster';
 export * from './ShadowReceiver';
+export * from './SpecularMappable';
 export * from './SpriteShadowCaster';
 export * from './WallShadowReceiver';

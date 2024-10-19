@@ -7,6 +7,7 @@ import {
   Mergeable,
   NormalMappable,
   RegionShadowCaster,
+  SpecularMappable,
   SpriteShadowCaster,
   WallShadowReceiver,
 } from './contracts';
@@ -40,14 +41,14 @@ type LightingSystemOptions = {
   softShadowsAmount: number;
 
   /**
-   * Should normal mapping be enabled?
+   * Should the shader be enabled?
    */
-  normalMappingEnabled: boolean;
+  shaderEnabled: boolean;
 
   /**
-   * Normal mapping shader
+   * Shader for normal mapping and specular highlights
    */
-  normalMappingShader: string | null;
+  shader: string | null;
 
   /**
    * Colour of ambient (global) light
@@ -87,8 +88,8 @@ export class LightingSystem {
     imageSmoothingEnabled: true,
     softShadowsEnabled: false,
     softShadowsAmount: 2,
-    normalMappingEnabled: false,
-    normalMappingShader: null,
+    shaderEnabled: false,
+    shader: null,
     ambientLightColour: 'black',
     wallLightingYOffset: -30,
     wallLightingCutoffDistance: 20,
@@ -107,6 +108,7 @@ export class LightingSystem {
   ];
 
   public static readonly NORMAL_MAP_DEFAULT_COLOUR = '#7f7fff';
+  public static readonly SPECULAR_MAP_DEFAULT_COLOUR = 'black';
 
   public options: LightingSystemOptions;
 
@@ -135,6 +137,9 @@ export class LightingSystem {
 
   public sceneNormalMapCanvas: HTMLCanvasElement;
   public sceneNormalMapContext: CanvasRenderingContext2D;
+
+  public sceneSpecularMapCanvas: HTMLCanvasElement;
+  public sceneSpecularMapContext: CanvasRenderingContext2D;
 
   public constructor(options?: Partial<LightingSystemOptions>) {
     this.options = Object.assign(
@@ -190,6 +195,12 @@ export class LightingSystem {
     this.sceneNormalMapCanvas.width = Game.screen.x;
     this.sceneNormalMapCanvas.height = Game.screen.y;
     this.sceneNormalMapContext = this.sceneNormalMapCanvas.getContext('2d')!;
+
+    this.sceneSpecularMapCanvas = document.createElement('canvas');
+    this.sceneSpecularMapCanvas.width = Game.screen.x;
+    this.sceneSpecularMapCanvas.height = Game.screen.y;
+    this.sceneSpecularMapContext =
+      this.sceneSpecularMapCanvas.getContext('2d')!;
   }
 
   /**
@@ -398,16 +409,16 @@ export class LightingSystem {
     this.lightMapContext.drawImage(this.wallMaskedLightMap1Canvas, 0, 0);
     this.lightMapContext.drawImage(this.wallMaskedLightMap2Canvas, 0, 0);
 
-    if (this.options.normalMappingEnabled) {
+    if (this.options.shaderEnabled) {
       this.lightMapContext.save();
       camera.setTransforms(this.lightMapContext);
       this.lights.forEach(light => {
-        if (!light.normalMappingCanvas) {
+        if (!light.shaderCanvas) {
           return;
         }
 
         this.lightMapContext.drawImage(
-          light.normalMappingCanvas.domElement,
+          light.shaderCanvas.domElement,
           light.position.x - light.radius,
           light.position.y - light.radius
         );
@@ -449,7 +460,7 @@ export class LightingSystem {
    * Draw normal maps for objects in the scene
    */
   public drawSceneNormalMap(camera: Camera, items: NormalMappable[]) {
-    if (!this.options.normalMappingEnabled) {
+    if (!this.options.shaderEnabled) {
       return;
     }
 
@@ -463,6 +474,26 @@ export class LightingSystem {
     });
 
     this.sceneNormalMapContext.restore();
+  }
+
+  /**
+   * Draw specular maps for objects in the scene
+   */
+  public drawSceneSpecularMap(camera: Camera, items: SpecularMappable[]) {
+    if (!this.options.shaderEnabled) {
+      return;
+    }
+
+    this.sceneSpecularMapCanvas.width = Game.screen.x;
+    this.sceneSpecularMapCanvas.height = Game.screen.y;
+    this.sceneSpecularMapContext.save();
+    camera.setTransforms(this.sceneSpecularMapContext);
+
+    items.forEach(item => {
+      item.drawSpecularMap(this.sceneSpecularMapContext);
+    });
+
+    this.sceneSpecularMapContext.restore();
   }
 
   /**

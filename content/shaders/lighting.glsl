@@ -14,6 +14,11 @@ uniform sampler2D u_groundMask;
 uniform sampler2D u_wall1Mask;
 uniform sampler2D u_wall2Mask;
 
+// TODO
+// uniform float u_t1;
+// uniform float u_t2;
+// uniform float u_t3;
+
 float LIGHT_HEIGHT = -0.3;
 float WALL_NORMAL_Z_OFFSET = 0.2;
 
@@ -58,6 +63,12 @@ bool isBlack(vec4 color) {
 }
 
 void main() {
+
+  // TODO
+  // HIGHLIGHT_ALPHA = u_t1;
+  // SHADOW_ALPHA = u_t2;
+  // HIGHLIGHT_OFFSET = u_t3;
+
   vec2 uv = gl_FragCoord.xy / u_resolution;
   vec2 screenUV = vec2(
     remap(
@@ -114,6 +125,8 @@ void main() {
         0.0,
         1.0
       );
+
+      amount *= 3.0;
 
       gl_FragColor = vec4(highlight.rgb * amount, amount);
       return;
