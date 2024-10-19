@@ -17,8 +17,6 @@ import {
 export class RegionShadowCasterActor
   implements Actor, RegionShadowCaster, Mergeable<RegionShadowCasterActor>
 {
-  private static readonly DEFAULT_SIZE = vec(64, 64);
-  private static readonly DEFAULT_INCLUDE_REGION_SHADOW = false;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -31,9 +29,8 @@ export class RegionShadowCasterActor
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = RegionShadowCasterActor.DEFAULT_SIZE;
-  public includeRegionShadow: boolean =
-    RegionShadowCasterActor.DEFAULT_INCLUDE_REGION_SHADOW;
+  public size: vec = vec(64, 64);
+  public includeRegionShadow: boolean = false;
 
   public hovered = false;
   public selected = false;

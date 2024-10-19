@@ -31,15 +31,6 @@ export class WallShadowReceiverActor
     SpecularMappable,
     Mergeable<WallShadowReceiverActor>
 {
-  private static readonly DEFAULT_SIZE = vec(64, 64);
-  private static readonly DEFAULT_COLOUR = '#ddd';
-  private static readonly DEFAULT_RECEIVE_LIGHT = true;
-  private static readonly DEFAULT_SPRITE_NAME = 'wall1';
-  private static readonly DEFAULT_MASK_NAME = 'wall1-mask';
-  private static readonly DEFAULT_NORMAL_MAP_NAME = 'wall1-normal';
-  private static readonly DEFAULT_SPECULAR_MAP_NAME = '';
-  private static readonly DEFAULT_SPRITE_REPEAT = false;
-  private static readonly DEFAULT_LAYER = WallShadowLayer.One;
   private static readonly DEBUG_COLOUR = '#f83';
   private static readonly DEBUG_HOVER_COLOUR = '#fb4';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -52,17 +43,17 @@ export class WallShadowReceiverActor
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = WallShadowReceiverActor.DEFAULT_SIZE;
-  public colour: string = WallShadowReceiverActor.DEFAULT_COLOUR;
-  public receiveLight: boolean = WallShadowReceiverActor.DEFAULT_RECEIVE_LIGHT;
-  public spriteName: string = WallShadowReceiverActor.DEFAULT_SPRITE_NAME;
-  public maskName: string = WallShadowReceiverActor.DEFAULT_MASK_NAME;
-  public normalMapName: string =
-    WallShadowReceiverActor.DEFAULT_NORMAL_MAP_NAME;
-  public specularMapName: string =
-    WallShadowReceiverActor.DEFAULT_SPECULAR_MAP_NAME;
-  public spriteRepeat: boolean = WallShadowReceiverActor.DEFAULT_SPRITE_REPEAT;
-  public layer: WallShadowLayer = WallShadowReceiverActor.DEFAULT_LAYER;
+  public size: vec = vec(64, 64);
+  public zIndex: number = 0;
+  public colour: string = '#ddd';
+  public receiveLight: boolean = true;
+  public surfaceNormal: vec = vec();
+  public spriteName: string = 'wall1';
+  public maskName: string = 'wall1-mask';
+  public normalMapName: string = 'wall1-normal';
+  public specularMapName: string = '';
+  public spriteRepeat: boolean = false;
+  public layer: WallShadowLayer = WallShadowLayer.One;
 
   public hovered = false;
   public selected = false;
@@ -100,8 +91,17 @@ export class WallShadowReceiverActor
       )
       .name('height')
       .listen();
+    this.folder.add(this, 'zIndex');
     this.folder.add(this, 'colour');
     this.folder.add(this, 'receiveLight');
+    this.folder
+      .add(this.surfaceNormal, 'x', -1, 1, 0.01)
+      .name('surfaceNormal x')
+      .listen();
+    this.folder
+      .add(this.surfaceNormal, 'y', -1, 1, 0.01)
+      .name('surfaceNormal y')
+      .listen();
     this.folder.add(this, 'spriteName');
     this.folder.add(this, 'maskName');
     this.folder.add(this, 'normalMapName');
@@ -116,8 +116,10 @@ export class WallShadowReceiverActor
       id: this.id,
       position: this.position,
       size: this.size,
+      zIndex: this.zIndex,
       colour: this.colour,
       receiveLight: this.receiveLight,
+      surfaceNormal: this.surfaceNormal,
       spriteName: this.spriteName,
       maskName: this.maskName,
       normalMapName: this.normalMapName,

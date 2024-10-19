@@ -17,11 +17,6 @@ import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 export class GroundShadowReceiverActor
   implements Actor, ShadowReceiver, NormalMappable, SpecularMappable
 {
-  private static readonly DEFAULT_SIZE = vec(256, 256);
-  private static readonly DEFAULT_COLOUR = '#ddd';
-  private static readonly DEFAULT_SPRITE_NAME = 'ground1';
-  private static readonly DEFAULT_NORMAL_MAP_NAME = 'ground1-normal';
-  private static readonly DEFAULT_SPECULAR_MAP_NAME = '';
   private static readonly DEBUG_COLOUR = '#36c';
   private static readonly DEBUG_HOVER_COLOUR = '#58e';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -34,13 +29,12 @@ export class GroundShadowReceiverActor
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = GroundShadowReceiverActor.DEFAULT_SIZE;
-  public colour: string = GroundShadowReceiverActor.DEFAULT_COLOUR;
-  public spriteName: string = GroundShadowReceiverActor.DEFAULT_SPRITE_NAME;
-  public normalMapName: string =
-    GroundShadowReceiverActor.DEFAULT_NORMAL_MAP_NAME;
-  public specularMapName: string =
-    GroundShadowReceiverActor.DEFAULT_SPECULAR_MAP_NAME;
+  public size: vec = vec(256, 256);
+  public zIndex: number = 0;
+  public colour: string = '#ddd';
+  public spriteName: string = 'ground1';
+  public normalMapName: string = 'ground1-normal';
+  public specularMapName: string = '';
 
   public hovered = false;
   public selected = false;
@@ -78,6 +72,7 @@ export class GroundShadowReceiverActor
       )
       .name('height')
       .listen();
+    this.folder.add(this, 'zIndex');
     this.folder.add(this, 'colour');
     this.folder.add(this, 'spriteName');
     this.folder.add(this, 'normalMapName');
@@ -90,6 +85,7 @@ export class GroundShadowReceiverActor
       id: this.id,
       position: this.position,
       size: this.size,
+      zIndex: this.zIndex,
       colour: this.colour,
       spriteName: this.spriteName,
       normalMapName: this.normalMapName,

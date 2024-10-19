@@ -95,6 +95,36 @@
     "args": ["./content/images/light.png"]
   },
   {
+    "name": "roof-center",
+    "type": "image",
+    "args": ["./content/images/roof-center.png"]
+  },
+  {
+    "name": "roof-center-mask",
+    "type": "image",
+    "args": ["./content/images/roof-center-mask.png"]
+  },
+  {
+    "name": "roof-left",
+    "type": "image",
+    "args": ["./content/images/roof-left.png"]
+  },
+  {
+    "name": "roof-left-mask",
+    "type": "image",
+    "args": ["./content/images/roof-left-mask.png"]
+  },
+  {
+    "name": "roof-right",
+    "type": "image",
+    "args": ["./content/images/roof-right.png"]
+  },
+  {
+    "name": "roof-right-mask",
+    "type": "image",
+    "args": ["./content/images/roof-right-mask.png"]
+  },
+  {
     "name": "sign",
     "type": "image",
     "args": ["./content/images/sign.png"]

@@ -8,11 +8,6 @@ import { LightingScene } from './scenes/LightingScene';
 import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
 export class CircleShadowCasterActor implements Actor, CircleShadowCaster {
-  private static readonly DEFAULT_SIZE = vec(64, 64);
-  private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
-  private static readonly DEFAULT_MIN_SHADOW_DISTANCE = 5;
-  private static readonly DEFAULT_MAX_SHADOW_DISTANCE = 20;
-  private static readonly DEFAULT_ALPHA = 1;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -25,13 +20,11 @@ export class CircleShadowCasterActor implements Actor, CircleShadowCaster {
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = CircleShadowCasterActor.DEFAULT_SIZE;
-  public anchor: vec = CircleShadowCasterActor.DEFAULT_ANCHOR;
-  public minShadowDistance: number =
-    CircleShadowCasterActor.DEFAULT_MIN_SHADOW_DISTANCE;
-  public maxShadowDistance: number | null =
-    CircleShadowCasterActor.DEFAULT_MAX_SHADOW_DISTANCE;
-  public alpha: number = CircleShadowCasterActor.DEFAULT_ALPHA;
+  public size: vec = vec(64, 64);
+  public anchor: vec = vec(0.5, 0.9);
+  public minShadowDistance: number = 5;
+  public maxShadowDistance: number | null = 20;
+  public alpha: number = 1;
 
   public hovered = false;
   public selected = false;

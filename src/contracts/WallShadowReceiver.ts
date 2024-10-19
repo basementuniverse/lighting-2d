@@ -1,3 +1,4 @@
+import { vec } from '@basementuniverse/vec';
 import { WallShadowLayer } from '../types';
 import { Mergeable } from './Mergeable';
 import { ShadowReceiver } from './ShadowReceiver';
@@ -9,6 +10,7 @@ export interface WallShadowReceiver
   extends ShadowReceiver,
     Mergeable<WallShadowReceiver> {
   receiveLight: boolean;
+  surfaceNormal: vec;
   layer: WallShadowLayer;
   drawMask(context: CanvasRenderingContext2D): void;
 }

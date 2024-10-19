@@ -383,7 +383,7 @@ export class Light implements Actor {
       );
     }
 
-    // If normal mapping is enabled, prepare the normal mapping canvas
+    // Prepare the shader if it's enabled
     if (this.lightingSystem.options.shaderEnabled) {
       try {
         this.prepareShader(camera);

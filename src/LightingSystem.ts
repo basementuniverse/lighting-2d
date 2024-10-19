@@ -1,5 +1,6 @@
 import Camera from '@basementuniverse/camera';
-import { pluck } from '@basementuniverse/utils';
+import { parseColor } from '@basementuniverse/parsecolor';
+import { floatEquals, pluck } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import {
   CircleShadowCaster,
@@ -15,8 +16,8 @@ import { ShadowCaster } from './contracts/ShadowCaster';
 import { ShadowReceiver } from './contracts/ShadowReceiver';
 import Game from './Game';
 import { Light } from './Light';
-import { Side, WallShadowLayer } from './types';
-import { rectangleToInterval } from './utilities';
+import { Colour, Side, WallShadowLayer } from './types';
+import { colourToString, lerpColour, rectangleToInterval } from './utilities';
 
 type LightingSystemOptions = {
   /**
@@ -71,6 +72,21 @@ type LightingSystemOptions = {
   ambientLightColour: string;
 
   /**
+   * Colour of ambient (global) light when facing away from the light
+   */
+  ambientLightShadowColour: string;
+
+  /**
+   * Colour of ambient (global) light when facing towards the light
+   */
+  ambientLightHighlightColour: string;
+
+  /**
+   * Direction of ambient light in radians
+   */
+  ambientLightDirection: number;
+
+  /**
    * Vertical offset for wall lighting
    */
   wallLightingYOffset: number;
@@ -109,6 +125,9 @@ export class LightingSystem {
     shaderShadowAlpha: 0.32,
     shaderSpecularAlpha: 1,
     ambientLightColour: 'black',
+    ambientLightShadowColour: 'black',
+    ambientLightHighlightColour: 'black',
+    ambientLightDirection: 0,
     wallLightingYOffset: -30,
     wallLightingCutoffDistance: 20,
     spriteWallShadowLengthFactor: 0.75,
@@ -239,6 +258,20 @@ export class LightingSystem {
     spriteShadowCasters: SpriteShadowCaster[],
     circleShadowCasters: CircleShadowCaster[]
   ) {
+    // Pre-calculate ambient light parameters
+    const ambientLightDirection = vec.rot(
+      vec(1, 0),
+      this.options.ambientLightDirection
+    );
+    const ambientLightColour = parseColor(this.options.ambientLightColour);
+    const ambientLightShadowColour = parseColor(
+      this.options.ambientLightShadowColour
+    );
+    const ambientLightHighlightColour = parseColor(
+      this.options.ambientLightHighlightColour
+    );
+
+    // Prepare each light
     this.lights.forEach(light =>
       light.prepare(
         camera,
@@ -346,7 +379,7 @@ export class LightingSystem {
     this.groundMaskedLightMapContext.restore();
     this.groundMaskedLightMapContext.restore();
 
-    // Prepare wall-masked lightmap 1 canvas
+    // Prepare wall-masked lightmap layer 1 canvas
     this.wallMaskedLightMap1Canvas.width = Game.screen.x;
     this.wallMaskedLightMap1Canvas.height = Game.screen.y;
     this.wallMaskedLightMap1Context.imageSmoothingEnabled =
@@ -354,13 +387,25 @@ export class LightingSystem {
     this.wallMaskedLightMap1Context.save();
     camera.setTransforms(this.wallMaskedLightMap1Context);
 
-    this.wallMaskedLightMap1Context.fillStyle = this.options.ambientLightColour;
-    this.wallMaskedLightMap1Context.fillRect(
-      camera.bounds.left,
-      camera.bounds.top,
-      camera.bounds.right - camera.bounds.left,
-      camera.bounds.bottom - camera.bounds.top
-    );
+    wallShadowReceivers.forEach(wall => {
+      if (wall.layer === WallShadowLayer.One) {
+        this.wallMaskedLightMap1Context.fillStyle = colourToString(
+          this.calculateAmbientLight(
+            wall.surfaceNormal,
+            ambientLightDirection,
+            ambientLightColour,
+            ambientLightShadowColour,
+            ambientLightHighlightColour
+          )
+        );
+        this.wallMaskedLightMap1Context.fillRect(
+          wall.position.x,
+          wall.position.y,
+          wall.size.x,
+          wall.size.y
+        );
+      }
+    });
 
     // Draw lights
     this.wallMaskedLightMap1Context.globalCompositeOperation = 'screen';
@@ -380,13 +425,25 @@ export class LightingSystem {
     this.wallMaskedLightMap2Context.save();
     camera.setTransforms(this.wallMaskedLightMap2Context);
 
-    this.wallMaskedLightMap2Context.fillStyle = this.options.ambientLightColour;
-    this.wallMaskedLightMap2Context.fillRect(
-      camera.bounds.left,
-      camera.bounds.top,
-      camera.bounds.right - camera.bounds.left,
-      camera.bounds.bottom - camera.bounds.top
-    );
+    wallShadowReceivers.forEach(wall => {
+      if (wall.layer === WallShadowLayer.Two) {
+        this.wallMaskedLightMap2Context.fillStyle = colourToString(
+          this.calculateAmbientLight(
+            wall.surfaceNormal,
+            ambientLightDirection,
+            ambientLightColour,
+            ambientLightShadowColour,
+            ambientLightHighlightColour
+          )
+        );
+        this.wallMaskedLightMap2Context.fillRect(
+          wall.position.x,
+          wall.position.y,
+          wall.size.x,
+          wall.size.y
+        );
+      }
+    });
 
     // Draw lights
     this.wallMaskedLightMap2Context.globalCompositeOperation = 'screen';
@@ -444,6 +501,32 @@ export class LightingSystem {
       this.lightMapContext.restore();
     }
     this.lightMapContext.restore();
+  }
+
+  /**
+   * Calculate the actual colour of ambient light based on the surface normal
+   */
+  private calculateAmbientLight(
+    surfaceNormal: vec,
+    ambientLightDirection: vec,
+    ambientLight: Colour,
+    ambientLightShadow: Colour,
+    ambientLightHighlight: Colour
+  ): Colour {
+    if (vec.eq(surfaceNormal, vec())) {
+      return ambientLight;
+    }
+
+    const dot = vec.dot(vec.nor(surfaceNormal), ambientLightDirection);
+    if (floatEquals(dot, 0)) {
+      return ambientLight;
+    }
+
+    if (dot < 0) {
+      return lerpColour(ambientLight, ambientLightHighlight, -dot);
+    }
+
+    return lerpColour(ambientLight, ambientLightShadow, dot);
   }
 
   /**

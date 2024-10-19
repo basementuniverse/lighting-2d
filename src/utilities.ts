@@ -1,4 +1,4 @@
-import { clamp, floatEquals } from '@basementuniverse/utils';
+import { clamp, floatEquals, lerp } from '@basementuniverse/utils';
 import { vec } from '@basementuniverse/vec';
 import {
   Colour,
@@ -50,6 +50,18 @@ export function quantizeVec(v: vec, quant: number): vec {
  */
 export function colourToString(colour: Colour): string {
   return `rgba(${colour.r}, ${colour.g}, ${colour.b}, ${colour.a})`;
+}
+
+/**
+ * Linear interpolate between 2 colours
+ */
+export function lerpColour(a: Colour, b: Colour, i: number) {
+  return {
+    r: lerp(a.r, b.r, i),
+    g: lerp(a.g, b.g, i),
+    b: lerp(a.b, b.b, i),
+    a: lerp(a.a, b.a, i),
+  };
 }
 
 /**
@@ -339,4 +351,17 @@ export function sector2d(point: vec, interval: Interval2d): Sector2d {
       [Sector1d.After]: Sector2d.BottomRight,
     },
   }[x][y];
+}
+
+/**
+ * Given 2 actors with position, size, and z-index, sort them by z-index then
+ * by the y position of their bottom edge
+ */
+export function sortActors(
+  a: { position: vec; size: vec; zIndex: number },
+  b: { position: vec; size: vec; zIndex: number }
+): number {
+  return (
+    a.zIndex - b.zIndex || a.position.y + a.size.y - (b.position.y + b.size.y)
+  );
 }

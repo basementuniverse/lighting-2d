@@ -36,18 +36,21 @@ npm run start
 
 6. To view the sample scene (the one in the preview image), click "Import state from JSON" (in the menu, top-right) and paste in the contents of `samples/sample-scene-1.json`
 
-## How to integrate it
+## How to integrate it into your game
 
 A scene consists of shadow casters, shadow receivers, and lights.
 
 First, we create a `LightingSystem`:
 
 ```ts
-
-const lightingSystem: LightingSystem = new LightingSystem({
-  imageSmoothingEnabled: false,
-});
+const lightingSystem: LightingSystem = new LightingSystem();
 ```
+
+(see `src/LightingSystem.ts` for options you can pass to the `LightingSystem`)
+
+Implement the `CircleShadowCaster`, `RegionShadowCaster`, `SpriteShadowCaster`, `GroundShadowReceiver`, and `WallShadowReceiver` interfaces on your game object classes as appropriate.
+
+If you want normal mapping and specular mapping, implement the `NormalMappable` and `SpecularMappable` interfaces as well.
 
 Lights can be added to the lighting system like so:
 
@@ -71,6 +74,8 @@ This will update each light.
 Next, prepare the lightmap every frame (usually this should be inside the `draw()` function):
 
 ```ts
+lightingSystem.drawSceneNormalMap(camera, normalMappables);
+lightingSystem.drawSceneSpecularMap(camera, specularMappables);
 lightingSystem.prepare(
   camera,
   groundShadowReceivers,
@@ -301,9 +306,3 @@ However, if there was just a single layer, then when 2 wall shadow receivers ove
 By separating objects which might overlap onto separate layers, we can avoid this issue.
 
 As long as shadows aren't too large and we don't have too many objects overlapping (e.g. more than 2), then 2 layers should be enough.
-
-## Plans
-
-- [x] soft shadows using `shadowBlur` (maybe? this might be too slow)
-- [x] each light could generate a normal map, meaning we could use a shader for bump mapping, specular highlights, etc.
-- [ ] ~~convert this into an NPM package that can be dropped into any game project~~

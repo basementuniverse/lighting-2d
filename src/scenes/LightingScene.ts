@@ -13,6 +13,7 @@ import { LightingSystem } from '../LightingSystem';
 import { RegionShadowCasterActor } from '../RegionShadowCasterActor';
 import { SpriteShadowCasterActor } from '../SpriteShadowCasterActor';
 import { WallShadowReceiverActor } from '../WallShadowReceiverActor';
+import { sortActors } from '../utilities';
 
 enum LightingSceneRenderMode {
   NoLighting = 'nolighting',
@@ -104,13 +105,22 @@ export class LightingScene extends Scene {
             this.wallShadowReceivers = LightingSystem.merge(
               this.wallShadowReceivers,
               (a, b) =>
-                a.colour === b.colour && a.receiveLight === b.receiveLight,
+                a.zIndex === b.zIndex &&
+                a.colour === b.colour &&
+                a.receiveLight === b.receiveLight &&
+                a.surfaceNormal === b.surfaceNormal &&
+                a.spriteName === b.spriteName &&
+                a.maskName === b.maskName &&
+                a.normalMapName === b.normalMapName &&
+                a.specularMapName === b.specularMapName &&
+                a.spriteRepeat === b.spriteRepeat &&
+                a.layer === b.layer,
               this
             );
 
             this.regionShadowCasters = LightingSystem.merge(
               this.regionShadowCasters,
-              undefined,
+              (a, b) => a.includeRegionShadow === b.includeRegionShadow,
               this
             );
           },
@@ -172,6 +182,33 @@ export class LightingScene extends Scene {
       .name('Ambient light')
       .onChange(value => {
         this.lightingSystem.options.ambientLightColour = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'ambientLightShadowColour')
+      .name('Ambient light shadow')
+      .onChange(value => {
+        this.lightingSystem.options.ambientLightShadowColour = value;
+      })
+      .listen();
+    Game.gui
+      .add(this.lightingSystem.options, 'ambientLightHighlightColour')
+      .name('Ambient light highlight')
+      .onChange(value => {
+        this.lightingSystem.options.ambientLightHighlightColour = value;
+      })
+      .listen();
+    Game.gui
+      .add(
+        this.lightingSystem.options,
+        'ambientLightDirection',
+        -Math.PI,
+        Math.PI,
+        0.01
+      )
+      .name('Ambient light direction')
+      .onFinishChange(value => {
+        this.lightingSystem.options.ambientLightDirection = value;
       })
       .listen();
     Game.gui
@@ -274,6 +311,12 @@ export class LightingScene extends Scene {
     this.lightingSystem.options.shaderEnabled = state.options.shaderEnabled;
     this.lightingSystem.options.ambientLightColour =
       state.options.ambientLightColour;
+    this.lightingSystem.options.ambientLightShadowColour =
+      state.options.ambientLightShadowColour;
+    this.lightingSystem.options.ambientLightHighlightColour =
+      state.options.ambientLightHighlightColour;
+    this.lightingSystem.options.ambientLightDirection =
+      state.options.ambientLightDirection;
     this.lightingSystem.options.wallLightingYOffset =
       state.options.wallLightingYOffset;
     this.lightingSystem.options.wallLightingCutoffDistance =
@@ -396,13 +439,9 @@ export class LightingScene extends Scene {
 
     this.lightingSystem.update(dt);
 
-    // y-sorting
-    this.groundShadowReceivers = this.groundShadowReceivers.sort(
-      (a, b) => a.position.y + a.size.y - (b.position.y + b.size.y)
-    );
-    this.wallShadowReceivers = this.wallShadowReceivers.sort(
-      (a, b) => a.position.y + a.size.y - (b.position.y + b.size.y)
-    );
+    // Sort visible actors
+    this.groundShadowReceivers = this.groundShadowReceivers.sort(sortActors);
+    this.wallShadowReceivers = this.wallShadowReceivers.sort(sortActors);
 
     // Handle item select
     if (InputManager.mousePressed()) {

@@ -9,12 +9,6 @@ import { LightingScene } from './scenes/LightingScene';
 import { clampVec, pointInRectangle, quantizeVec } from './utilities';
 
 export class SpriteShadowCasterActor implements Actor, SpriteShadowCaster {
-  private static readonly DEFAULT_SIZE = vec(64, 64);
-  private static readonly DEFAULT_SHADOW_NAME = 'character-shadow';
-  private static readonly DEFAULT_ANCHOR = vec(0.5, 0.9);
-  private static readonly DEFAULT_OFFSET = vec(0.5, 0.9);
-  private static readonly DEFAULT_MIN_SHADOW_LENGTH = 64;
-  private static readonly DEFAULT_MAX_SHADOW_LENGTH = 64;
   private static readonly DEBUG_COLOUR = '#c33';
   private static readonly DEBUG_HOVER_COLOUR = '#f44';
   private static readonly MIN_SIZE = vec(16, 16);
@@ -27,14 +21,12 @@ export class SpriteShadowCasterActor implements Actor, SpriteShadowCaster {
   public folder: dat.GUI | null = null;
 
   public position: vec = vec();
-  public size: vec = SpriteShadowCasterActor.DEFAULT_SIZE;
-  public shadowName: string = SpriteShadowCasterActor.DEFAULT_SHADOW_NAME;
-  public anchor: vec = SpriteShadowCasterActor.DEFAULT_ANCHOR;
-  public offset: vec = SpriteShadowCasterActor.DEFAULT_OFFSET;
-  public minShadowLength: number =
-    SpriteShadowCasterActor.DEFAULT_MIN_SHADOW_LENGTH;
-  public maxShadowLength: number | null =
-    SpriteShadowCasterActor.DEFAULT_MAX_SHADOW_LENGTH;
+  public size: vec = vec(64, 64);
+  public shadowName: string = 'character-shadow';
+  public anchor: vec = vec(0.5, 0.9);
+  public offset: vec = vec(0.5, 0.9);
+  public minShadowLength: number = 64;
+  public maxShadowLength: number | null = 64;
 
   public hovered = false;
   public selected = false;
