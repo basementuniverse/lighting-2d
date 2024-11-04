@@ -4,6 +4,8 @@ This is an experiment showing how to create a 2.5d scene with lighting and shado
 
 ![Lighting and shadows in 2.5d](preview.png)
 
+![Animated preview](preview-animated.gif)
+
 (the above scene is in `/samples/sample-scene-1.json`)
 
 ## How to run it
