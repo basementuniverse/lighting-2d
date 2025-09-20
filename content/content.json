@@ -2,7 +2,7 @@
   {
     "name": "lighting-shader",
     "type": "text",
-    "args": ["content/shaders/lighting.glsl"]
+    "args": ["url:/content/shaders/lighting.glsl"]
   },
   {
     "name": "anvil",
