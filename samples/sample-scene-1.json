@@ -10,7 +10,7 @@
     "imageSmoothingEnabled": false,
     "softShadowsEnabled": true,
     "softShadowsAmount": 2,
-    "shaderEnabled": true,
+    "shaderEnabled": false,
     "shaderHighlightAlpha": 0.24,
     "shaderShadowAlpha": 0.32,
     "shaderSpecularAlpha": 1,
